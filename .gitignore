@@ -60,3 +60,6 @@ Thumbs.db
 # Docker / local volumes
 # =========================
 postgres_data/
+
+# Uploaded resumes
+backend/uploads/

@@ -35,3 +35,21 @@ export const createCandidate = async (
 
   return response.data;
 };
+
+export const uploadCandidateResume = async (
+  candidateId: number,
+  file: File,
+) => {
+  const formData = new FormData();
+
+  formData.append("file", file, file.name);
+
+  console.log("FormData file:", formData.get("file"));
+
+  const response = await api.post(
+    `/candidates/${candidateId}/resume`,
+    formData,
+  );
+
+  return response.data;
+};

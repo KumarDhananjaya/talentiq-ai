@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { createCandidate } from "../services/candidateService";
+import {
+  createCandidate,
+  uploadCandidateResume,
+} from "../services/candidateService";
 import type { CreateCandidateData } from "../services/candidateService";
 
 interface AddCandidateFormProps {
@@ -22,6 +25,7 @@ export default function AddCandidateForm({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -39,13 +43,50 @@ export default function AddCandidateForm({
     }));
   };
 
+  const handleResumeFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setError("Please upload a PDF or DOCX file.");
+      setResumeFile(null);
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      setError("Resume file must be smaller than 5 MB.");
+      setResumeFile(null);
+      return;
+    }
+
+    setError("");
+    setResumeFile(file);
+  };
+
   const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     try {
       setLoading(true);
       setError("");
-      await createCandidate(form);
+      const candidate = await createCandidate(form);
+
+      if (resumeFile) {
+        await uploadCandidateResume(candidate.id, resumeFile);
+      }
+
       onCandidateCreated();
     } catch (err) {
       console.error(err);
@@ -222,15 +263,84 @@ export default function AddCandidateForm({
 
         {/* Resume */}
         <div>
-          <div className="mb-1.5 flex justify-between items-baseline">
-            <label
-              htmlFor="resume_text"
-              className="block text-sm font-semibold text-gray-700"
-            >
-              Resume Text
-            </label>
+          <div className="mb-3 flex items-baseline justify-between">
+            <div>
+              <label
+                htmlFor="resume_file"
+                className="block text-sm font-semibold text-gray-700"
+              >
+                Resume
+              </label>
+
+              <p className="mt-1 text-xs text-gray-400">
+                Upload a PDF or DOCX file, or paste the resume text below.
+              </p>
+            </div>
+
             <span className="text-xs text-gray-400">Optional</span>
           </div>
+
+          <label
+            htmlFor="resume_file"
+            className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-gray-400 hover:bg-gray-100"
+          >
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-sm">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" x2="12" y1="3" y2="15" />
+              </svg>
+            </div>
+
+            {resumeFile ? (
+              <>
+                <p className="text-sm font-semibold text-gray-900">
+                  {resumeFile.name}
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  {(resumeFile.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-gray-900">
+                  Upload your resume
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  PDF or DOCX · Maximum 5 MB
+                </p>
+              </>
+            )}
+
+            <input
+              id="resume_file"
+              type="file"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={handleResumeFileChange}
+              className="hidden"
+            />
+          </label>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-100" />
+            <span className="text-xs font-medium text-gray-400">
+              OR PASTE TEXT
+            </span>
+            <div className="h-px flex-1 bg-gray-100" />
+          </div>
+
           <textarea
             id="resume_text"
             name="resume_text"
