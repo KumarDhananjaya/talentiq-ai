@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.candidate import Candidate
 from app.schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
+)
+from app.services.candidate_service import (
+    create_candidate,
+    get_candidate,
+    get_candidates,
 )
 
 
@@ -19,59 +23,35 @@ router = APIRouter(
     "/",
     response_model=CandidateResponse,
 )
-def create_candidate(
+def create_candidate_endpoint(
     candidate: CandidateCreate,
     db: Session = Depends(get_db),
 ):
-    existing_candidate = db.query(Candidate).filter(
-        Candidate.email == candidate.email
-    ).first()
-
-    if existing_candidate:
-        raise HTTPException(
-            status_code=400,
-            detail="Candidate with this email already exists",
-        )
-
-    db_candidate = Candidate(
-        **candidate.model_dump()
+    return create_candidate(
+        db=db,
+        candidate=candidate,
     )
-
-    db.add(db_candidate)
-    db.commit()
-    db.refresh(db_candidate)
-
-    return db_candidate
 
 
 @router.get(
     "/",
     response_model=list[CandidateResponse],
 )
-def get_candidates(
+def get_candidates_endpoint(
     db: Session = Depends(get_db),
 ):
-    candidates = db.query(Candidate).all()
-
-    return candidates
+    return get_candidates(db=db)
 
 
 @router.get(
     "/{candidate_id}",
     response_model=CandidateResponse,
 )
-def get_candidate(
+def get_candidate_endpoint(
     candidate_id: int,
     db: Session = Depends(get_db),
 ):
-    candidate = db.query(Candidate).filter(
-        Candidate.id == candidate_id
-    ).first()
-
-    if not candidate:
-        raise HTTPException(
-            status_code=404,
-            detail="Candidate not found",
-        )
-
-    return candidate
+    return get_candidate(
+        db=db,
+        candidate_id=candidate_id,
+    )
