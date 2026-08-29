@@ -16,6 +16,7 @@ from app.schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
 )
+from app.services.resume_parser import extract_text_from_pdf
 
 from app.services.candidate_service import (
     create_candidate,
@@ -116,6 +117,15 @@ async def upload_resume(
     file_path = UPLOAD_DIR / safe_filename
 
     file_path.write_bytes(file_content)
+    resume_text = None
+
+    if extension == ".pdf":
+        resume_text = extract_text_from_pdf(str(file_path))
+
+    candidate.resume_text = resume_text
+
+    db.commit()
+    db.refresh(candidate)
 
     return {
         "message": "Resume uploaded successfully",
