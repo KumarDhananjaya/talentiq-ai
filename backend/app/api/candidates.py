@@ -25,6 +25,13 @@ from app.services.candidate_service import (
     get_candidate,
     get_candidates,
 )
+from app.services.llm_resume_parser import (
+    extract_resume_with_llm,
+)
+
+from app.services.resume_merge_service import (
+    merge_resume_results,
+)
 
 
 router = APIRouter(
@@ -109,33 +116,100 @@ async def upload_resume(
     # FIX: Wrap parsing in try/except to catch corrupted PDFs
     # ---------------------------------------------------------
     try:
-        # If you add DOCX support later, check `if extension == ".pdf":` here
-        resume_text = extract_text_from_pdf(str(file_path))
-        
-        # Parse the structured data
-        parsed_resume = parse_resume(resume_text)
-        
-    except Exception as e:
-        # If parsing fails, delete the corrupted file and return a clean error
-        if file_path.exists():
-            file_path.unlink()
-        raise HTTPException(
-            status_code=422,
-            detail=f"Failed to process the resume document: {str(e)}"
+    # ---------------------------------------------------------
+    # Step 1: Extract raw text from PDF
+    # ---------------------------------------------------------
+        resume_text = extract_text_from_pdf(
+            str(file_path)
         )
 
+        # ---------------------------------------------------------
+        # Step 2: Rule-based parsing
+        # ---------------------------------------------------------
+        rule_resume = parse_resume(
+            resume_text
+        )
+
+        # ---------------------------------------------------------
+        # Step 3: Gemini structured extraction
+        # ---------------------------------------------------------
+        try:
+            llm_resume = extract_resume_with_llm(
+                resume_text
+            )
+
+        except Exception:
+            # LLM failure should not break resume upload.
+            # The merge service will fall back to rule-based data.
+            llm_resume = None
+
+        # ---------------------------------------------------------
+        # Step 4: Merge both parser results
+        # ---------------------------------------------------------
+        merged_resume = merge_resume_results(
+            rule_resume=rule_resume,
+            llm_resume=llm_resume,
+        )
+
+    except Exception as e:
+        # Delete uploaded file if document processing fails
+        if file_path.exists():
+            file_path.unlink()
+
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Failed to process the resume document: "
+                f"{str(e)}"
+            ),
+     )
+
     # Save raw text to database
+    # ---------------------------------------------------------
+    #   Save raw resume text
+    # ---------------------------------------------------------
     candidate.resume_text = resume_text
+
+
+    # ---------------------------------------------------------
+    # Update candidate fields using merged extraction
+    # ---------------------------------------------------------
+    if merged_resume.name:
+        candidate.full_name = merged_resume.name
+
+    if merged_resume.email:
+        candidate.email = merged_resume.email
+
+    if merged_resume.phone:
+        candidate.phone = merged_resume.phone
+
+
+    # ---------------------------------------------------------
+    # Save merged skills
+    # ---------------------------------------------------------
+    if merged_resume.skills:
+        candidate.skills = ", ".join(
+            merged_resume.skills
+        )
+
+
+    # ---------------------------------------------------------
+    # Keep rule-based experience calculation
+    # ---------------------------------------------------------
+    candidate.experience_years = (
+        rule_resume.total_experience_years
+    )
+
     
     db.commit()
     db.refresh(candidate)
 
     return {
-        "message": "Resume uploaded and analyzed successfully",
+       "message": "Resume uploaded and analyzed successfully",
         "candidate_id": candidate_id,
         "original_filename": file.filename,
         "stored_filename": safe_filename,
         "file_size": len(file_content),
         "content_type": file.content_type,
-        "parsed_resume": parsed_resume.model_dump(),
+        "parsed_resume": merged_resume.model_dump(),
     }
