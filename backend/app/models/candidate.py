@@ -1,7 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, Integer, String, Text, Float
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.database.database import Base
 
@@ -41,8 +45,14 @@ class Candidate(Base):
         nullable=True,
     )
 
-    experience_years: Mapped[int | None] = mapped_column(
-        Integer,
+    experiences = relationship(
+        "CandidateExperience",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+    )
+
+    experience_years: Mapped[float | None] = mapped_column(
+        Float,
         nullable=True,
     )
 
