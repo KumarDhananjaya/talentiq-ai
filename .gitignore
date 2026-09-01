@@ -62,4 +62,8 @@ Thumbs.db
 postgres_data/
 
 # Uploaded resumes
-backend/uploads/
+backend/uploads/backend/.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
