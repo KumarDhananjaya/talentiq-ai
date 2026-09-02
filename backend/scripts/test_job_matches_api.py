@@ -1,0 +1,66 @@
+def test_get_job_matches_api(
+    client,
+    db,
+):
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+
+    candidate = Candidate(
+        full_name="John Doe",
+        email="john@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+            "Docker",
+        ],
+        experience_years=3,
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills=(
+            "Python, FastAPI, Docker"
+        ),
+        minimum_experience=2,
+    )
+
+    db.add_all([
+        candidate,
+        job,
+    ])
+
+    db.commit()
+
+    response = client.get(
+        f"/jobs/{job.id}/matches"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+
+    assert (
+        data[0]["candidate_id"]
+        == candidate.id
+    )
+
+    assert data[0]["job_id"] == job.id
+
+    assert data[0]["overall_score"] == 100.0
+
+def test_get_job_matches_job_not_found(
+    client,
+):
+    response = client.get(
+        "/jobs/99999/matches"
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "detail": "Job not found"
+    }
