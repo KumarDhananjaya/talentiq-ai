@@ -46,6 +46,11 @@ class Candidate(Base):
         nullable=False,
     )
 
+    embedding: Mapped[list[float] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
     experiences = relationship(
         "CandidateExperience",
         back_populates="candidate",

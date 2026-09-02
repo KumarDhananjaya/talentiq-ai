@@ -6,7 +6,13 @@ from app.models.candidate_experience import (
     CandidateExperience,
 )
 from app.schemas.candidate import CandidateCreate
+from app.services.profile_text_service import (
+    build_candidate_profile,
+)
 
+from app.services.embedding_service import (
+    generate_embedding,
+)
 
 def create_candidate(
     db: Session,
@@ -44,6 +50,15 @@ def create_candidate(
         experience_years=(
             candidate.experience_years
         ),
+    )
+
+    # Build candidate profile and generate embedding
+    candidate_profile = build_candidate_profile(
+        db_candidate
+    )
+
+    db_candidate.embedding = generate_embedding(
+        candidate_profile
     )
 
     for experience in candidate.experiences:
