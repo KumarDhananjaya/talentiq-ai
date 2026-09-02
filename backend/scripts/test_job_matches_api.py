@@ -14,6 +14,8 @@ def test_get_job_matches_api(
             "Docker",
         ],
         experience_years=3,
+        embedding=[1.0, 0.0, 0.0],
+
     )
 
     job = Job(
@@ -24,6 +26,8 @@ def test_get_job_matches_api(
             "Python, FastAPI, Docker"
         ),
         minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+
     )
 
     db.add_all([
@@ -50,7 +54,35 @@ def test_get_job_matches_api(
 
     assert data[0]["job_id"] == job.id
 
-    assert data[0]["overall_score"] == 100.0
+    assert 0 <= data[0]["overall_score"] <= 100
+
+    assert 0 <= data[0]["skill_score"] <= 100
+
+    assert 0 <= data[0]["experience_score"] <= 100
+
+    assert 0 <= data[0]["semantic_score"] <= 100
+
+    assert data[0]["skill_score"] == 100.0
+
+    assert data[0]["experience_score"] == 100.0
+
+    assert data[0]["matched_skills"] == [
+        "docker",
+        "fastapi",
+        "python",
+    ]
+
+    assert data[0]["missing_skills"] == []
+
+    assert data[0]["experience_status"] == (
+        "Meets requirement"
+    )
+
+    assert data[0]["match_level"] == (
+        "Excellent Match"
+    )
+
+    assert data[0]["explanation"]
 
 def test_get_job_matches_job_not_found(
     client,

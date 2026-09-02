@@ -27,3 +27,14 @@ class JobMatchResponse(BaseModel):
     missing_skills: list[str] = Field(
         default_factory=list
     )
+
+    experience_status: str
+
+    match_level: str
+
+    explanation: str
+
+    semantic_score: float = Field(
+        ge=0,
+        le=100,
+    )
