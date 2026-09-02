@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, Float
+from sqlalchemy import DateTime, Integer, String, Text, Float, JSON
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
@@ -40,9 +40,10 @@ class Candidate(Base):
         nullable=True,
     )
 
-    skills: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
+    skills: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
     )
 
     experiences = relationship(
