@@ -1,6 +1,9 @@
 from app.models.candidate import Candidate
 from app.models.job import Job
 from sqlalchemy.orm import Session
+from app.services.semantic_matching_service import (
+    calculate_semantic_score,
+)
 
 
 def normalize_skill(skill: str) -> str:
@@ -125,17 +128,92 @@ def calculate_experience_score(
         2,
     )
 
+def get_experience_status(
+    candidate: Candidate,
+    job: Job,
+) -> str:
+    """
+    Describe how the candidate's experience
+    compares with the job requirement.
+    """
+
+    if not job.minimum_experience:
+        return "No experience requirement"
+
+    candidate_experience = (
+        candidate.experience_years or 0
+    )
+
+    if candidate_experience >= job.minimum_experience:
+        return "Meets requirement"
+
+    return "Below requirement"
+
+
+def get_match_level(
+    overall_score: float,
+) -> str:
+    """
+    Convert the numerical match score
+    into a recruiter-friendly category.
+    """
+
+    if overall_score >= 85:
+        return "Excellent Match"
+
+    if overall_score >= 70:
+        return "Strong Match"
+
+    if overall_score >= 50:
+        return "Moderate Match"
+
+    return "Weak Match"
+
+
+def generate_match_explanation(
+    skill_score: float,
+    experience_score: float,
+    matched_skills: list[str],
+    missing_skills: list[str],
+    experience_status: str,
+) -> str:
+    """
+    Generate a human-readable explanation
+    for the candidate-job match.
+    """
+
+    explanation_parts = []
+
+    if matched_skills:
+        explanation_parts.append(
+            f"Matches {len(matched_skills)} required skill"
+            f"{'s' if len(matched_skills) != 1 else ''}."
+        )
+
+    if missing_skills:
+        explanation_parts.append(
+            f"Missing {len(missing_skills)} required skill"
+            f"{'s' if len(missing_skills) != 1 else ''}."
+        )
+
+    explanation_parts.append(
+        f"Experience status: {experience_status}."
+    )
+
+    return " ".join(explanation_parts)
+
 
 def calculate_match(
     candidate: Candidate,
     job: Job,
 ) -> dict:
     """
-    Calculate the overall candidate-job match.
+    Calculate the hybrid candidate-job match.
 
     Weighting:
-        70% skills
-        30% experience
+        40% skills
+        20% experience
+        40% semantic similarity
     """
 
     (
@@ -154,22 +232,51 @@ def calculate_match(
         )
     )
 
-    overall_score = (
-        (skill_score * 0.7)
-        + (experience_score * 0.3)
+    semantic_score = (
+        calculate_semantic_score(
+            candidate=candidate,
+            job=job,
+        )
+    )
+
+    overall_score = round(
+        (skill_score * 0.4)
+        + (experience_score * 0.2)
+        + (semantic_score * 0.4),
+        2,
+    )
+
+    experience_status = (
+        get_experience_status(
+            candidate=candidate,
+            job=job,
+        )
+    )
+
+    match_level = get_match_level(
+        overall_score
+    )
+
+    explanation = generate_match_explanation(
+        skill_score=skill_score,
+        experience_score=experience_score,
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        experience_status=experience_status,
     )
 
     return {
         "candidate_id": candidate.id,
         "job_id": job.id,
-        "overall_score": round(
-            overall_score,
-            2,
-        ),
+        "overall_score": overall_score,
         "skill_score": skill_score,
         "experience_score": experience_score,
+        "semantic_score": semantic_score,
         "matched_skills": matched_skills,
         "missing_skills": missing_skills,
+        "experience_status": experience_status,
+        "match_level": match_level,
+        "explanation": explanation,
     }
 
 def get_job_matches(

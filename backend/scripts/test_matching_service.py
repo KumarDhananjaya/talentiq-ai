@@ -2,8 +2,15 @@ from app.models.candidate import Candidate
 from app.models.job import Job
 
 from app.services.matching_service import (
+    calculate_skill_score,
+    calculate_experience_score,
     calculate_match,
+    get_job_matches,
+    get_experience_status,
+    get_match_level,
 )
+from unittest.mock import patch
+
 
 
 def test_calculate_match():
@@ -29,10 +36,14 @@ def test_calculate_match():
         minimum_experience=2,
     )
 
-    result = calculate_match(
-        candidate=candidate,
-        job=job,
-    )
+    with patch(
+        "app.services.matching_service.calculate_semantic_score",
+        return_value=80.0,
+    ):
+        result = calculate_match(
+            candidate=candidate,
+            job=job,
+        )
 
     assert result["candidate_id"] == 1
     assert result["job_id"] == 1
@@ -41,7 +52,9 @@ def test_calculate_match():
 
     assert result["experience_score"] == 100.0
 
-    assert result["overall_score"] == 76.67
+    assert result["semantic_score"] == 80.0
+
+    assert result["overall_score"] == 78.67
 
     assert "python" in result["matched_skills"]
     assert "fastapi" in result["matched_skills"]
@@ -107,4 +120,61 @@ def test_get_job_matches(
     assert (
         matches[0]["overall_score"]
         > matches[1]["overall_score"]
+    )
+
+def test_match_level_excellent():
+    assert get_match_level(90) == "Excellent Match"
+
+
+def test_match_level_strong():
+    assert get_match_level(75) == "Strong Match"
+
+
+def test_match_level_moderate():
+    assert get_match_level(60) == "Moderate Match"
+
+
+def test_match_level_weak():
+    assert get_match_level(40) == "Weak Match"
+
+
+def test_experience_status_meets_requirement(db):
+    candidate = Candidate(
+        full_name="Test Candidate",
+        skills=["Python"],
+        experience_years=3,
+    )
+
+    job = Job(
+        title="Software Engineer",
+        company="Test Company",
+        description="Python developer",
+        required_skills="Python",
+        minimum_experience=2,
+    )
+
+    assert (
+        get_experience_status(candidate, job)
+        == "Meets requirement"
+    )
+
+
+def test_experience_status_below_requirement(db):
+    candidate = Candidate(
+        full_name="Test Candidate",
+        skills=["Python"],
+        experience_years=1,
+    )
+
+    job = Job(
+        title="Software Engineer",
+        company="Test Company",
+        description="Python developer",
+        required_skills="Python",
+        minimum_experience=3,
+    )
+
+    assert (
+        get_experience_status(candidate, job)
+        == "Below requirement"
     )
