@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.database import Base
@@ -32,6 +32,11 @@ class Job(Base):
 
     required_skills: Mapped[str | None] = mapped_column(
         Text,
+        nullable=True,
+    )
+
+    embedding: Mapped[list[float] | None] = mapped_column(
+        JSON,
         nullable=True,
     )
 

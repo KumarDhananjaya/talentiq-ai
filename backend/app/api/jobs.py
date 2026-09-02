@@ -14,6 +14,9 @@ from app.schemas.matching import (
     JobMatchResponse,
 )
 
+from app.services.embedding_service import generate_embedding
+from app.services.profile_text_service import build_job_profile
+
 router = APIRouter(
     prefix="/jobs",
     tags=["Jobs"],
@@ -24,12 +27,24 @@ router = APIRouter(
     "/",
     response_model=JobResponse,
 )
+@router.post(
+    "/",
+    response_model=JobResponse,
+)
 def create_job(
     job: JobCreate,
     db: Session = Depends(get_db),
 ):
     db_job = Job(
         **job.model_dump()
+    )
+
+    job_profile = build_job_profile(
+        db_job
+    )
+
+    db_job.embedding = generate_embedding(
+        job_profile
     )
 
     db.add(db_job)
