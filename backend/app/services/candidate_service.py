@@ -1,5 +1,3 @@
-import json
-
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -42,7 +40,7 @@ def create_candidate(
         ),
         phone=candidate.phone,
         resume_text=candidate.resume_text,
-        skills=json.dumps(candidate.skills),
+        skills=candidate.skills,
         experience_years=(
             candidate.experience_years
         ),
