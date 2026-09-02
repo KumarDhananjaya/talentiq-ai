@@ -42,7 +42,6 @@ def parsed_resume_to_candidate(
         experiences=experiences,
     )
 
-
 def resume_extraction_to_candidate(
     resume: ResumeExtraction,
     resume_text: str,
@@ -78,10 +77,6 @@ def resume_extraction_to_candidate(
         email=resume.email,
         phone=resume.phone,
         resume_text=resume_text,
-        skills=(
-            ", ".join(resume.skills)
-            if resume.skills
-            else None
-        ),
+        skills=resume.skills,
         experiences=experiences,
     )
