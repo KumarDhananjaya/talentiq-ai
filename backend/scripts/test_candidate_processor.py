@@ -1,63 +1,49 @@
-from app.schemas.resume import (
-    ExperienceItem,
-    ParsedResume,
-)
-from app.services.candidate_processor import (
-    parsed_resume_to_candidate,
-)
+from app.schemas.resume import ParsedResume
+from app.services.candidate_processor import parsed_resume_to_candidate
 
 
 def test_parsed_resume_to_candidate():
 
     parsed_resume = ParsedResume(
-        full_name="Test Candidate",
-        email="test@example.com",
-        phone="+61400000000",
-        skills=[
-            "Python",
-            "FastAPI",
-            "PostgreSQL",
-        ],
-        total_experience_years=2.5,
+        full_name="John Doe",
+        email="john@example.com",
+        phone="1234567890",
+        skills=["Python", "FastAPI", "PostgreSQL"],
         experience=[
-            ExperienceItem(
-                role="Software Engineer",
-                company="Tech Company",
-                duration="2023 - Present",
-            ),
-            ExperienceItem(
-                role="Software Developer",
-                company="Startup",
-                duration="2021 - 2023",
-            ),
+            {
+                "company": "Google",
+                "role": "Software Engineer",
+            },
+            {
+                "company": "Microsoft",
+                "role": "Software Engineer Intern",
+            },
         ],
+        education=[],
     )
 
-    candidate = parsed_resume_to_candidate(
+    result = parsed_resume_to_candidate(
         parsed_resume=parsed_resume,
-        resume_text="Sample resume text",
+        resume_text="John Doe Software Engineer Python FastAPI",
     )
 
-    assert candidate.full_name == "Test Candidate"
-    assert candidate.email == "test@example.com"
-    assert candidate.phone == "+61400000000"
+    assert result.full_name == "John Doe"
+    assert result.email == "john@example.com"
+    assert result.phone == "1234567890"
+    assert result.resume_text == (
+        "John Doe Software Engineer Python FastAPI"
+    )
 
-    assert candidate.skills == [
+    assert result.skills == [
         "Python",
         "FastAPI",
         "PostgreSQL",
     ]
 
-    assert candidate.experience_years == 2.5
+    assert len(result.experiences) == 2
 
-    assert len(candidate.experiences) == 2
+    assert result.experiences[0].company == "Google"
+    assert result.experiences[0].role == "Software Engineer"
 
-    assert (
-        candidate.experiences[0].company
-        == "Tech Company"
-    )
-
-    assert (
-        candidate.experiences[0].role
-        == "Software Engineer"
-    )
+    assert result.experiences[1].company == "Microsoft"
+    assert result.experiences[1].role == "Software Engineer Intern"

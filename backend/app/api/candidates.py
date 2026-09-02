@@ -188,9 +188,7 @@ async def upload_resume(
     # Save merged skills
     # ---------------------------------------------------------
     if merged_resume.skills:
-        candidate.skills = ", ".join(
-            merged_resume.skills
-        )
+        candidate.skills = merged_resume.skills
 
 
     # ---------------------------------------------------------
