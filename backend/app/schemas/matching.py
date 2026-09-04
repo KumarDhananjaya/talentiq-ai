@@ -20,6 +20,11 @@ class JobMatchResponse(BaseModel):
         le=100,
     )
 
+    semantic_score: float = Field(
+        ge=0,
+        le=100,
+    )
+
     matched_skills: list[str] = Field(
         default_factory=list
     )
@@ -34,7 +39,12 @@ class JobMatchResponse(BaseModel):
 
     explanation: str
 
-    semantic_score: float = Field(
-        ge=0,
-        le=100,
-    )
+    class Config:
+        from_attributes = True
+
+
+class JobMatchListResponse(BaseModel):
+    job_id: int
+    total_matches: int
+
+    matches: list[JobMatchResponse]

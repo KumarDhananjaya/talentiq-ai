@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from app.services.semantic_matching_service import (
     calculate_semantic_score,
 )
+from app.services.match_service import (
+    save_candidate_job_match,
+)
 
 
 def normalize_skill(skill: str) -> str:
@@ -173,6 +176,7 @@ def get_match_level(
 def generate_match_explanation(
     skill_score: float,
     experience_score: float,
+    semantic_score: float,
     matched_skills: list[str],
     missing_skills: list[str],
     experience_status: str,
@@ -182,18 +186,24 @@ def generate_match_explanation(
     for the candidate-job match.
     """
 
-    explanation_parts = []
+    explanation_parts = [
+        f"Skill match score: {skill_score}%.",
+        f"Experience match score: {experience_score}%.",
+        f"Semantic similarity score: {semantic_score}%.",
+    ]
 
     if matched_skills:
         explanation_parts.append(
-            f"Matches {len(matched_skills)} required skill"
-            f"{'s' if len(matched_skills) != 1 else ''}."
+            "Matched skills: "
+            + ", ".join(matched_skills)
+            + "."
         )
 
     if missing_skills:
         explanation_parts.append(
-            f"Missing {len(missing_skills)} required skill"
-            f"{'s' if len(missing_skills) != 1 else ''}."
+            "Missing skills: "
+            + ", ".join(missing_skills)
+            + "."
         )
 
     explanation_parts.append(
@@ -260,6 +270,7 @@ def calculate_match(
     explanation = generate_match_explanation(
         skill_score=skill_score,
         experience_score=experience_score,
+        semantic_score=semantic_score,
         matched_skills=matched_skills,
         missing_skills=missing_skills,
         experience_status=experience_status,
@@ -284,7 +295,7 @@ def get_job_matches(
     job: Job,
 ) -> list[dict]:
     """
-    Calculate and rank all candidates
+    Calculate, persist, and rank all candidates
     for a given job.
     """
 
@@ -297,15 +308,62 @@ def get_job_matches(
 
     for candidate in candidates:
 
-        match = calculate_match(
+        match_result = calculate_match(
             candidate=candidate,
             job=job,
         )
 
-        matches.append(match)
+        saved_match = (
+            save_candidate_job_match(
+                db=db,
+                candidate=candidate,
+                job=job,
+                match_result=match_result,
+            )
+        )
+
+        matches.append(
+            {
+                "candidate_id": (
+                    saved_match.candidate_id
+                ),
+                "job_id": (
+                    saved_match.job_id
+                ),
+                "overall_score": (
+                    saved_match.overall_score
+                ),
+                "skill_score": (
+                    saved_match.skill_score
+                ),
+                "experience_score": (
+                    saved_match.experience_score
+                ),
+                "semantic_score": (
+                    saved_match.semantic_score
+                ),
+                "matched_skills": (
+                    saved_match.matched_skills
+                ),
+                "missing_skills": (
+                    saved_match.missing_skills
+                ),
+                "experience_status": (
+                    saved_match.experience_status
+                ),
+                "match_level": (
+                    saved_match.match_level
+                ),
+                "explanation": (
+                    saved_match.explanation
+                ),
+            }
+        )
 
     matches.sort(
-        key=lambda match: match["overall_score"],
+        key=lambda match: match[
+            "overall_score"
+        ],
         reverse=True,
     )
 
