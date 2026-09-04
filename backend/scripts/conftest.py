@@ -35,32 +35,29 @@ TestingSessionLocal = sessionmaker(
 @pytest.fixture
 def db():
     """
-    Create a completely clean database
-    for every test.
+    Create a clean database
+    for each test.
     """
 
     Base.metadata.drop_all(
-        bind=engine,
+        bind=engine
     )
 
     Base.metadata.create_all(
-        bind=engine,
+        bind=engine
     )
 
     session = TestingSessionLocal()
 
     try:
-
         yield session
 
     finally:
-
         session.rollback()
-
         session.close()
 
         Base.metadata.drop_all(
-            bind=engine,
+            bind=engine
         )
 
 
