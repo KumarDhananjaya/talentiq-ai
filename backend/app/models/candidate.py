@@ -47,7 +47,7 @@ class Candidate(Base):
     )
 
     embedding: Mapped[list[float] | None] = mapped_column(
-        JSON,
+        JSON(none_as_null=True),
         nullable=True,
     )
 
@@ -60,6 +60,12 @@ class Candidate(Base):
     experience_years: Mapped[float | None] = mapped_column(
         Float,
         nullable=True,
+    )
+
+    job_matches = relationship(
+        "CandidateJobMatch",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
     )
 
     created_at: Mapped[datetime] = mapped_column(

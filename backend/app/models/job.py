@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.database import Base
 
@@ -36,13 +36,19 @@ class Job(Base):
     )
 
     embedding: Mapped[list[float] | None] = mapped_column(
-        JSON,
+        JSON(none_as_null=True),
         nullable=True,
     )
 
     minimum_experience: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
+    )
+
+    candidate_matches = relationship(
+        "CandidateJobMatch",
+        back_populates="job",
+        cascade="all, delete-orphan",
     )
 
     created_at: Mapped[datetime] = mapped_column(
