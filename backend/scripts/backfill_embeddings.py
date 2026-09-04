@@ -13,6 +13,7 @@ from app.services.profile_text_service import (
     build_candidate_profile,
     build_job_profile,
 )
+from sqlalchemy import or_
 
 
 def backfill_candidate_embeddings(
@@ -33,7 +34,10 @@ def backfill_candidate_embeddings(
         candidates = (
             db.query(Candidate)
             .filter(
-                Candidate.embedding.is_(None)
+                or_(
+                    Candidate.embedding.is_(None),
+                    Candidate.embedding == None,
+                )
             )
             .all()
         )
