@@ -21,6 +21,8 @@ def test_backfill_candidate_embedding(db):
     db.add(candidate)
     db.commit()
 
+    assert db.query(Candidate).count() == 1
+
     fake_embedding = [
         0.1,
         0.2,
