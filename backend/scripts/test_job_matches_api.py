@@ -341,3 +341,99 @@ def test_recalculate_job_matches_updates_existing_match(
     assert len(matches) == 1
 
     assert matches[0].id == first_match_id
+
+def test_update_job(
+    client,
+    db,
+):
+    from app.models.job import Job
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills="Python, FastAPI",
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    response = client.put(
+        f"/jobs/{job.id}",
+        json={
+            "title": "Senior Backend Engineer",
+            "description": "Senior backend role",
+            "required_skills": "Python, FastAPI, Docker",
+            "minimum_experience": 4,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == job.id
+    assert data["title"] == "Senior Backend Engineer"
+    assert data["company"] == "Example Company"
+    assert data["description"] == "Senior backend role"
+    assert data["required_skills"] == (
+        "Python, FastAPI, Docker"
+    )
+    assert data["minimum_experience"] == 4
+
+
+def test_update_job_partial_update(
+    client,
+    db,
+):
+    from app.models.job import Job
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills="Python",
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    response = client.put(
+        f"/jobs/{job.id}",
+        json={
+            "title": "Senior Backend Engineer",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["title"] == "Senior Backend Engineer"
+    assert data["company"] == "Example Company"
+    assert data["description"] == "Backend role"
+    assert data["required_skills"] == "Python"
+    assert data["minimum_experience"] == 2
+
+
+def test_update_job_not_found(
+    client,
+):
+    response = client.put(
+        "/jobs/99999",
+        json={
+            "title": "Updated Job",
+        },
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "detail": "Job not found"
+    }
