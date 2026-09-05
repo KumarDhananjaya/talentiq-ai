@@ -8,6 +8,7 @@ from app.schemas.job import (
     JobResponse,
 )
 from app.services.matching_service import (
+    calculate_and_persist_job_matches,
     get_persisted_job_matches,
 )
 
@@ -62,6 +63,42 @@ def get_jobs(
     jobs = db.query(Job).all()
 
     return jobs
+
+@router.post(
+    "/{job_id}/matches/recalculate",
+    response_model=JobMatchListResponse,
+)
+def recalculate_job_matches(
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Recalculate and persist matches
+    for all candidates for a specific job.
+    """
+
+    job = (
+        db.query(Job)
+        .filter(Job.id == job_id)
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found",
+        )
+
+    matches = calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    return {
+        "job_id": job.id,
+        "total_matches": len(matches),
+        "matches": matches,
+    }
 
 @router.get(
     "/{job_id}/matches",
