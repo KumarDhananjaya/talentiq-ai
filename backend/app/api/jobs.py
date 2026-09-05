@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -10,8 +10,9 @@ from app.schemas.job import (
 from app.services.matching_service import (
     get_job_matches,
 )
+
 from app.schemas.matching import (
-    JobMatchResponse,
+    JobMatchListResponse,
 )
 
 from app.services.embedding_service import generate_embedding
@@ -27,10 +28,7 @@ router = APIRouter(
     "/",
     response_model=JobResponse,
 )
-@router.post(
-    "/",
-    response_model=JobResponse,
-)
+
 def create_job(
     job: JobCreate,
     db: Session = Depends(get_db),
@@ -67,10 +65,20 @@ def get_jobs(
 
 @router.get(
     "/{job_id}/matches",
-    response_model=list[JobMatchResponse],
+    response_model=JobMatchListResponse,
 )
 def get_job_matches_endpoint(
     job_id: int,
+    min_score: float = Query(
+        default=0,
+        ge=0,
+        le=100,
+    ),
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -95,4 +103,16 @@ def get_job_matches_endpoint(
         job=job,
     )
 
-    return matches
+    matches = [
+        match
+        for match in matches
+        if match["overall_score"] >= min_score
+    ]
+
+    matches = matches[:limit]
+
+    return {
+        "job_id": job.id,
+        "total_matches": len(matches),
+        "matches": matches,
+    }
