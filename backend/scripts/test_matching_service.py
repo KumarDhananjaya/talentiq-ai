@@ -5,11 +5,14 @@ from app.services.matching_service import (
     calculate_skill_score,
     calculate_experience_score,
     calculate_match,
-    get_job_matches,
     get_experience_status,
     get_match_level,
 )
 from unittest.mock import patch
+from app.services.matching_service import (
+    calculate_and_persist_job_matches,
+    get_persisted_job_matches,
+)
 
 
 
@@ -101,11 +104,9 @@ def test_get_job_matches(
 
     db.commit()
 
-    from app.services.matching_service import (
-        get_job_matches,
-    )
+  
 
-    matches = get_job_matches(
+    matches = calculate_and_persist_job_matches(
         db=db,
         job=job,
     )
@@ -177,4 +178,78 @@ def test_experience_status_below_requirement(db):
     assert (
         get_experience_status(candidate, job)
         == "Below requirement"
+    )
+
+def test_get_persisted_job_matches_returns_ranked_matches(
+    db,
+):
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+
+    candidate_1 = Candidate(
+        full_name="Candidate One",
+        email="candidate1@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+            "Docker",
+        ],
+        experience_years=5,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    candidate_2 = Candidate(
+        full_name="Candidate Two",
+        email="candidate2@example.com",
+        skills=[
+            "Python",
+        ],
+        experience_years=1,
+        embedding=[0.0, 1.0, 0.0],
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills=(
+            "Python, FastAPI, Docker"
+        ),
+        minimum_experience=3,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add_all([
+        candidate_1,
+        candidate_2,
+        job,
+    ])
+
+    db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    matches = get_persisted_job_matches(
+        db=db,
+        job=job,
+    )
+
+    assert len(matches) == 2
+
+    assert (
+        matches[0]["overall_score"]
+        >= matches[1]["overall_score"]
+    )
+
+    assert (
+        matches[0]["candidate_id"]
+        == candidate_1.id
+    )
+
+    assert (
+        matches[1]["candidate_id"]
+        == candidate_2.id
     )
