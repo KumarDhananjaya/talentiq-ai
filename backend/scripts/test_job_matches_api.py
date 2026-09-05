@@ -4,6 +4,9 @@ def test_get_job_matches_api(
 ):
     from app.models.candidate import Candidate
     from app.models.job import Job
+    from app.services.matching_service import (
+        calculate_and_persist_job_matches,
+    )
 
     candidate = Candidate(
         full_name="John Doe",
@@ -15,7 +18,6 @@ def test_get_job_matches_api(
         ],
         experience_years=3,
         embedding=[1.0, 0.0, 0.0],
-
     )
 
     job = Job(
@@ -27,7 +29,6 @@ def test_get_job_matches_api(
         ),
         minimum_experience=2,
         embedding=[1.0, 0.0, 0.0],
-
     )
 
     db.add_all([
@@ -36,6 +37,11 @@ def test_get_job_matches_api(
     ])
 
     db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
 
     response = client.get(
         f"/jobs/{job.id}/matches"
@@ -86,6 +92,7 @@ def test_get_job_matches_api(
 
     assert data["matches"][0]["explanation"]
 
+
 def test_get_job_matches_job_not_found(
     client,
 ):
@@ -99,12 +106,16 @@ def test_get_job_matches_job_not_found(
         "detail": "Job not found"
     }
 
+
 def test_get_job_matches_with_filters(
     client,
     db,
 ):
     from app.models.candidate import Candidate
     from app.models.job import Job
+    from app.services.matching_service import (
+        calculate_and_persist_job_matches,
+    )
 
     candidate = Candidate(
         full_name="Jane Doe",
@@ -134,6 +145,11 @@ def test_get_job_matches_with_filters(
     ])
 
     db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
 
     response = client.get(
         f"/jobs/{job.id}/matches"
