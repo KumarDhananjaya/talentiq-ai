@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.services.semantic_matching_service import (
     calculate_semantic_score,
 )
-from app.services.match_service import (
+from app.services.match_persistence_service import (
     save_candidate_job_match,
 )
 
@@ -316,8 +316,8 @@ def get_job_matches(
         saved_match = (
             save_candidate_job_match(
                 db=db,
-                candidate=candidate,
-                job=job,
+                candidate_id=candidate.id,
+                job_id=job.id,
                 match_result=match_result,
             )
         )
