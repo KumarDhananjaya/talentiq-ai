@@ -10,6 +10,13 @@ class JobCreate(BaseModel):
     required_skills: str | None = None
     minimum_experience: int | None = None
 
+class JobUpdate(BaseModel):
+    title: str | None = None
+    company: str | None = None
+    description: str | None = None
+    required_skills: str | None = None
+    minimum_experience: int | None = None
+
 
 class JobResponse(JobCreate):
     id: int
