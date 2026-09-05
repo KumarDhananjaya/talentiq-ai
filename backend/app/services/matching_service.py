@@ -7,7 +7,7 @@ from app.services.semantic_matching_service import (
 from app.services.match_persistence_service import (
     save_candidate_job_match,
 )
-
+from app.models.candidate_job_match import CandidateJobMatch
 
 def normalize_skill(skill: str) -> str:
     """
@@ -290,7 +290,7 @@ def calculate_match(
         "explanation": explanation,
     }
 
-def get_job_matches(
+def calculate_and_persist_job_matches(
     db: Session,
     job: Job,
 ) -> list[dict]:
@@ -368,3 +368,40 @@ def get_job_matches(
     )
 
     return matches
+
+def get_persisted_job_matches(
+    db: Session,
+    job: Job,
+) -> list[dict]:
+    """
+    Return persisted matches for a given job,
+    ranked by overall score.
+    """
+
+    saved_matches = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id == job.id
+        )
+        .order_by(
+            CandidateJobMatch.overall_score.desc()
+        )
+        .all()
+    )
+
+    return [
+        {
+            "candidate_id": match.candidate_id,
+            "job_id": match.job_id,
+            "overall_score": match.overall_score,
+            "skill_score": match.skill_score,
+            "experience_score": match.experience_score,
+            "semantic_score": match.semantic_score,
+            "matched_skills": match.matched_skills,
+            "missing_skills": match.missing_skills,
+            "experience_status": match.experience_status,
+            "match_level": match.match_level,
+            "explanation": match.explanation,
+        }
+        for match in saved_matches
+    ]
