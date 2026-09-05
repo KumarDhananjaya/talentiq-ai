@@ -169,3 +169,175 @@ def test_get_job_matches_with_filters(
         data["matches"][0]["overall_score"]
         >= 80
     )
+
+def test_recalculate_job_matches_api(
+    client,
+    db,
+):
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+
+    candidate = Candidate(
+        full_name="Recalculate Candidate",
+        email="recalculate@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+            "Docker",
+        ],
+        experience_years=3,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills=(
+            "Python, FastAPI, Docker"
+        ),
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add_all([
+        candidate,
+        job,
+    ])
+
+    db.commit()
+
+    response = client.post(
+        f"/jobs/{job.id}/matches/recalculate"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["job_id"] == job.id
+    assert data["total_matches"] == 1
+    assert len(data["matches"]) == 1
+
+    assert (
+        data["matches"][0]["candidate_id"]
+        == candidate.id
+    )
+
+    assert (
+        data["matches"][0]["job_id"]
+        == job.id
+    )
+
+    assert data["matches"][0]["skill_score"] == 100.0
+
+    assert data["matches"][0]["experience_score"] == 100.0
+
+    assert data["matches"][0]["matched_skills"] == [
+        "docker",
+        "fastapi",
+        "python",
+    ]
+
+    assert data["matches"][0]["missing_skills"] == []
+
+
+def test_recalculate_job_matches_job_not_found(
+    client,
+):
+    response = client.post(
+        "/jobs/99999/matches/recalculate"
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "detail": "Job not found"
+    }
+
+
+def test_recalculate_job_matches_updates_existing_match(
+    client,
+    db,
+):
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+    from app.models.candidate_job_match import (
+        CandidateJobMatch,
+    )
+
+    candidate = Candidate(
+        full_name="Update Candidate",
+        email="update@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+        ],
+        experience_years=3,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills=(
+            "Python, FastAPI"
+        ),
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add_all([
+        candidate,
+        job,
+    ])
+
+    db.commit()
+
+    first_response = client.post(
+        f"/jobs/{job.id}/matches/recalculate"
+    )
+
+    assert first_response.status_code == 200
+
+    first_data = first_response.json()
+
+    assert first_data["total_matches"] == 1
+
+    first_match_id = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.candidate_id
+            == candidate.id,
+            CandidateJobMatch.job_id
+            == job.id,
+        )
+        .first()
+        .id
+    )
+
+    second_response = client.post(
+        f"/jobs/{job.id}/matches/recalculate"
+    )
+
+    assert second_response.status_code == 200
+
+    second_data = second_response.json()
+
+    assert second_data["total_matches"] == 1
+
+    matches = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.candidate_id
+            == candidate.id,
+            CandidateJobMatch.job_id
+            == job.id,
+        )
+        .all()
+    )
+
+    assert len(matches) == 1
+
+    assert matches[0].id == first_match_id
