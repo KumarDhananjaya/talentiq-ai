@@ -41,6 +41,20 @@ class CandidateCreate(BaseModel):
         default_factory=list
     )
 
+class CandidateUpdate(BaseModel):
+    full_name: str | None = None
+    email: EmailStr | None = None
+    phone: str | None = None
+    resume_text: str | None = None
+
+    skills: list[str] | None = None
+
+    experience_years: float | None = None
+
+    experiences: list[
+        CandidateExperienceCreate
+    ] | None = None
+
 
 class CandidateResponse(BaseModel):
     id: int

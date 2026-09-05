@@ -15,6 +15,7 @@ from app.models.candidate import Candidate
 from app.schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
+    CandidateUpdate,
 )
 from app.services.resume_parser import (
     extract_text_from_pdf,
@@ -24,6 +25,7 @@ from app.services.candidate_service import (
     create_candidate,
     get_candidate,
     get_candidates,
+    update_candidate,
 )
 from app.services.llm_resume_parser import (
     extract_resume_with_llm,
@@ -60,6 +62,21 @@ def get_candidates_endpoint(
     db: Session = Depends(get_db),
 ):
     return get_candidates(db=db)
+
+@router.put(
+    "/{candidate_id}",
+    response_model=CandidateResponse,
+)
+def update_candidate_endpoint(
+    candidate_id: int,
+    candidate: CandidateUpdate,
+    db: Session = Depends(get_db),
+):
+    return update_candidate(
+        db=db,
+        candidate_id=candidate_id,
+        candidate=candidate,
+    )
 
 
 @router.get("/{candidate_id}", response_model=CandidateResponse)
