@@ -8,7 +8,7 @@ from app.schemas.job import (
     JobResponse,
 )
 from app.services.matching_service import (
-    get_job_matches,
+    get_persisted_job_matches,
 )
 
 from app.schemas.matching import (
@@ -98,7 +98,7 @@ def get_job_matches_endpoint(
             detail="Job not found",
         )
 
-    matches = get_job_matches(
+    matches = get_persisted_job_matches(
         db=db,
         job=job,
     )
