@@ -8,25 +8,44 @@ from google.genai import errors
 from app.core.config import settings
 from app.schemas.resume_extraction import ResumeExtraction
 
-# Set up standard Python logging
 logger = logging.getLogger(__name__)
 
-# Initialize the Gemini client
-try:
-    client = genai.Client(api_key=settings.gemini_api_key)
-except Exception as e:
-    logger.error(f"Failed to initialize Gemini Client: {str(e)}")
-    client = None
+
+def get_gemini_client() -> Optional[genai.Client]:
+    """
+    Lazily initialize the Gemini client.
+
+    The client is created when extraction is requested rather than
+    at module import time, ensuring the API key is loaded first.
+    """
+    if not settings.gemini_api_key:
+        return None
+
+    try:
+        return genai.Client(
+            api_key=settings.gemini_api_key
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to initialize Gemini Client: {str(e)}"
+        )
+        return None
 
 
-def extract_resume_with_llm(resume_text: str) -> Optional[ResumeExtraction]:
+def extract_resume_with_llm(
+    resume_text: str,
+) -> Optional[ResumeExtraction]:
     """
     Extract structured information from resume text using Gemini.
     Safely handles empty inputs, API errors, and invalid responses.
     """
+
     # 1. Validate empty input
     if not resume_text or not resume_text.strip():
-        logger.warning("Empty or whitespace-only resume text provided. Skipping LLM extraction.")
+        logger.warning(
+            "Empty or whitespace-only resume text provided. "
+            "Skipping LLM extraction."
+        )
         return None
 
     clean_text = resume_text.strip()
@@ -70,39 +89,65 @@ def extract_resume_with_llm(resume_text: str) -> Optional[ResumeExtraction]:
     {clean_text}
     """
 
-    # 3. Production-safe API Call and Error Handling
+    # 3. Lazily initialize Gemini client
+    client = get_gemini_client()
+
     if not client:
-        logger.error("Gemini client is not initialized. Cannot perform extraction.")
+        logger.warning(
+            "Gemini client is not initialized. "
+            "Skipping LLM extraction."
+        )
         return None
 
+    # 4. Production-safe API call and error handling
     try:
         chat = client.chats.create(
-            model="gemini-3.6-flash",
+            model="gemini-2.5-flash",
             config={
                 "response_mime_type": "application/json",
                 "response_schema": ResumeExtraction,
             },
         )
-        
+
         response = chat.send_message(prompt)
-        
-        # 4. Return validated parsed output
+
+        # 5. Return validated parsed output
         if not response.parsed:
-            logger.error("LLM extraction failed: No parsed response returned from Gemini.")
+            logger.error(
+                "LLM extraction failed: No parsed response "
+                "returned from Gemini."
+            )
             return None
 
-        # Log success securely without dumping the entire Pydantic object/PII
-        extracted_name = getattr(response.parsed, 'name', 'Unknown Candidate')
-        logger.info(f"Successfully extracted resume data via LLM for: {extracted_name}")
-        
+        # Log success securely without dumping the entire
+        # Pydantic object or resume PII.
+        extracted_name = getattr(
+            response.parsed,
+            "name",
+            "Unknown Candidate",
+        )
+
+        logger.info(
+            f"Successfully extracted resume data via LLM "
+            f"for: {extracted_name}"
+        )
+
         return response.parsed
 
     except errors.APIError as e:
-        logger.error(f"Gemini API Error during resume extraction: {str(e)}")
+        logger.error(
+            f"Gemini API Error during resume extraction: {str(e)}"
+        )
         return None
+
     except ValidationError as e:
-        logger.error(f"Pydantic Validation Error for LLM output: {str(e)}")
+        logger.error(
+            f"Pydantic Validation Error for LLM output: {str(e)}"
+        )
         return None
+
     except Exception as e:
-        logger.error(f"Unexpected error during LLM resume extraction: {str(e)}")
+        logger.error(
+            f"Unexpected error during LLM resume extraction: {str(e)}"
+        )
         return None
