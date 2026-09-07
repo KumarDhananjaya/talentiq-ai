@@ -313,57 +313,34 @@ def calculate_and_persist_job_matches(
             job=job,
         )
 
-        saved_match = (
-            save_candidate_job_match(
-                db=db,
-                candidate_id=candidate.id,
-                job_id=job.id,
-                match_result=match_result,
-            )
+        saved_match = save_candidate_job_match(
+            db=db,
+            candidate_id=candidate.id,
+            job_id=job.id,
+            match_result=match_result,
+            commit=False,
         )
 
         matches.append(
             {
-                "candidate_id": (
-                    saved_match.candidate_id
-                ),
-                "job_id": (
-                    saved_match.job_id
-                ),
-                "overall_score": (
-                    saved_match.overall_score
-                ),
-                "skill_score": (
-                    saved_match.skill_score
-                ),
-                "experience_score": (
-                    saved_match.experience_score
-                ),
-                "semantic_score": (
-                    saved_match.semantic_score
-                ),
-                "matched_skills": (
-                    saved_match.matched_skills
-                ),
-                "missing_skills": (
-                    saved_match.missing_skills
-                ),
-                "experience_status": (
-                    saved_match.experience_status
-                ),
-                "match_level": (
-                    saved_match.match_level
-                ),
-                "explanation": (
-                    saved_match.explanation
-                ),
+                "candidate_id": saved_match.candidate_id,
+                "job_id": saved_match.job_id,
+                "overall_score": saved_match.overall_score,
+                "skill_score": saved_match.skill_score,
+                "experience_score": saved_match.experience_score,
+                "semantic_score": saved_match.semantic_score,
+                "matched_skills": saved_match.matched_skills,
+                "missing_skills": saved_match.missing_skills,
+                "experience_status": saved_match.experience_status,
+                "match_level": saved_match.match_level,
+                "explanation": saved_match.explanation,
             }
         )
 
+    db.commit()
+
     matches.sort(
-        key=lambda match: match[
-            "overall_score"
-        ],
+        key=lambda match: match["overall_score"],
         reverse=True,
     )
 
