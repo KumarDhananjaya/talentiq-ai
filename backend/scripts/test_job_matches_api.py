@@ -1,3 +1,9 @@
+from app.models.candidate_job_match import (
+    CandidateJobMatch,
+)
+from app.models.candidate import Candidate
+from app.models.job import Job
+from app.services.matching_service import calculate_and_persist_job_matches
 def test_get_job_matches_api(
     client,
     db,
@@ -515,3 +521,73 @@ def test_update_job_invalidates_existing_matches(
     )
 
     assert len(matches_after_update) == 0
+
+def test_update_job_invalidates_existing_matches(
+    client,
+    db,
+):
+    candidate = Candidate(
+        full_name="Job Update Candidate",
+        email="job-update@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+        ],
+        experience_years=3,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend development role",
+        required_skills=(
+            "Python, FastAPI"
+        ),
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add_all([
+        candidate,
+        job,
+    ])
+
+    db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    saved_matches = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id == job.id
+        )
+        .all()
+    )
+
+    assert len(saved_matches) == 1
+
+    response = client.put(
+        f"/jobs/{job.id}",
+        json={
+            "description": (
+                "Updated backend and platform "
+                "engineering role"
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+
+    saved_matches = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id == job.id
+        )
+        .all()
+    )
+
+    assert len(saved_matches) == 0

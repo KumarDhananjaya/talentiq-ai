@@ -11,6 +11,9 @@ from app.schemas.job import (
 from app.services.matching_service import (
     calculate_and_persist_job_matches,
     get_persisted_job_matches,
+)
+
+from app.services.match_invalidation_service import (
     invalidate_job_matches,
 )
 
@@ -20,6 +23,8 @@ from app.schemas.matching import (
 
 from app.services.embedding_service import generate_embedding
 from app.services.profile_text_service import build_job_profile
+
+
 
 router = APIRouter(
     prefix="/jobs",
