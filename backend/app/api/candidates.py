@@ -6,6 +6,7 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
+    Query,
     UploadFile,
 )
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ from app.schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
     CandidateUpdate,
+    
 )
 from app.services.resume_parser import (
     extract_text_from_pdf,
@@ -26,6 +28,7 @@ from app.services.candidate_service import (
     get_candidate,
     get_candidates,
     update_candidate,
+    delete_candidate
 )
 from app.services.llm_resume_parser import (
     extract_resume_with_llm,
@@ -33,6 +36,10 @@ from app.services.llm_resume_parser import (
 
 from app.services.resume_merge_service import (
     merge_resume_results,
+)
+
+from app.services.candidate_search_service import (
+    search_candidates,
 )
 
 
@@ -76,6 +83,53 @@ def update_candidate_endpoint(
         db=db,
         candidate_id=candidate_id,
         candidate=candidate,
+    )
+
+@router.delete(
+    "/{candidate_id}",
+    status_code=204,
+)
+def delete_candidate_endpoint(
+    candidate_id: int,
+    db: Session = Depends(get_db),
+):
+    return delete_candidate(
+        db=db,
+        candidate_id=candidate_id,
+    )
+
+@router.get(
+    "/search",
+    response_model=list[CandidateResponse],
+)
+def search_candidates_endpoint(
+    skills: str | None = Query(
+        default=None,
+    ),
+    minimum_experience: float | None = Query(
+        default=None,
+        ge=0,
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Search candidates using skills
+    and minimum experience.
+    """
+
+    parsed_skills = None
+
+    if skills:
+        parsed_skills = [
+            skill.strip()
+            for skill in skills.split(",")
+            if skill.strip()
+        ]
+
+    return search_candidates(
+        db=db,
+        skills=parsed_skills,
+        minimum_experience=minimum_experience,
     )
 
 

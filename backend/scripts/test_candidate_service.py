@@ -16,6 +16,7 @@ from app.schemas.candidate import (
 from app.services.candidate_service import (
     create_candidate,
     update_candidate,
+    delete_candidate,
 )
 from app.models.job import Job
 from app.models.candidate_job_match import (
@@ -364,3 +365,105 @@ def test_update_candidate_invalidates_existing_matches(
     )
 
     assert len(matches_after_update) == 0
+
+def test_delete_candidate(db):
+    
+    candidate = create_candidate(
+        db=db,
+        candidate=CandidateCreate(
+            full_name="Delete Candidate",
+            email="delete@example.com",
+            skills=["Python"],
+            experience_years=2,
+        ),
+    )
+
+    candidate_id = candidate.id
+
+    delete_candidate(
+        db=db,
+        candidate_id=candidate_id,
+    )
+
+    deleted_candidate = (
+        db.query(Candidate)
+        .filter(
+            Candidate.id == candidate_id
+        )
+        .first()
+    )
+
+    assert deleted_candidate is None
+
+def test_delete_candidate_not_found(db):
+    
+    with pytest.raises(HTTPException) as exc_info:
+
+        delete_candidate(
+            db=db,
+            candidate_id=999999,
+        )
+
+    assert exc_info.value.status_code == 404
+
+    assert exc_info.value.detail == (
+        "Candidate not found"
+    )
+
+def test_delete_candidate_invalidates_matches(db):
+    
+    candidate = create_candidate(
+        db=db,
+        candidate=CandidateCreate(
+            full_name="Delete Match Candidate",
+            email="delete-match@example.com",
+            skills=[
+                "Python",
+                "FastAPI",
+            ],
+            experience_years=3,
+        ),
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend development role",
+        required_skills="Python, FastAPI",
+        minimum_experience=2,
+        embedding=candidate.embedding,
+    )
+
+    db.add(job)
+    db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    assert (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.candidate_id
+            == candidate.id
+        )
+        .count()
+        == 1
+    )
+
+    delete_candidate(
+        db=db,
+        candidate_id=candidate.id,
+    )
+
+    remaining_matches = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.candidate_id
+            == candidate.id
+        )
+        .count()
+    )
+
+    assert remaining_matches == 0

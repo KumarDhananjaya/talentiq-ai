@@ -240,3 +240,36 @@ def get_candidate(
         )
 
     return candidate
+
+def delete_candidate(
+    db: Session,
+    candidate_id: int,
+) -> None:
+
+    db_candidate = (
+        db.query(Candidate)
+        .filter(
+            Candidate.id == candidate_id
+        )
+        .first()
+    )
+
+    if not db_candidate:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate not found",
+        )
+
+    try:
+        invalidate_candidate_matches(
+            db=db,
+            candidate_id=db_candidate.id,
+        )
+
+        db.delete(db_candidate)
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
