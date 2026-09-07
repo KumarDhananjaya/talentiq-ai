@@ -591,3 +591,161 @@ def test_update_job_invalidates_existing_matches(
     )
 
     assert len(saved_matches) == 0
+
+def test_get_job_api(
+    client,
+    db,
+):
+    from app.models.job import Job
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend development role",
+        required_skills="Python, FastAPI",
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    response = client.get(
+        f"/jobs/{job.id}"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == job.id
+    assert data["title"] == "Backend Engineer"
+    assert data["company"] == "Example Company"
+    assert data["description"] == (
+        "Backend development role"
+    )
+
+def test_delete_job_api(
+    client,
+    db,
+):
+    from app.models.job import Job
+
+    job = Job(
+        title="Delete Engineer",
+        company="Example Company",
+        description="Job to be deleted",
+        required_skills="Python",
+        minimum_experience=1,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    job_id = job.id
+
+    response = client.delete(
+        f"/jobs/{job_id}"
+    )
+
+    assert response.status_code == 204
+
+    deleted_job = (
+        db.query(Job)
+        .filter(
+            Job.id == job_id
+        )
+        .first()
+    )
+
+    assert deleted_job is None
+
+def test_delete_job_api_not_found(
+    client,
+):
+    response = client.delete(
+        "/jobs/999999"
+    )
+
+    assert response.status_code == 404
+
+    assert response.json() == {
+        "detail": "Job not found"
+    }
+
+def test_delete_job_invalidates_matches(
+    client,
+    db,
+):
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+    from app.models.candidate_job_match import (
+        CandidateJobMatch,
+    )
+    from app.services.matching_service import (
+        calculate_and_persist_job_matches,
+    )
+
+    candidate = Candidate(
+        full_name="Match Candidate",
+        email="job-delete-match@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+        ],
+        experience_years=3,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills="Python, FastAPI",
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add_all([
+        candidate,
+        job,
+    ])
+
+    db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    assert (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id
+            == job.id
+        )
+        .count()
+        == 1
+    )
+
+    job_id = job.id
+
+    response = client.delete(
+        f"/jobs/{job_id}"
+    )
+
+    assert response.status_code == 204
+
+    remaining_matches = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id
+            == job_id
+        )
+        .count()
+    )
+
+    assert remaining_matches == 0
