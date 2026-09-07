@@ -1,67 +1,106 @@
-import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from app.schemas.resume_extraction import ResumeExtraction
-from app.services.llm_resume_parser import extract_resume_with_llm
+from app.services.llm_resume_parser import (
+    extract_resume_with_llm,
+)
 
-class TestLLMResumeParser(unittest.TestCase):
 
-    @patch("app.services.llm_resume_parser.client")
-    def test_valid_resume_text_returns_extraction(self, mock_client):
-        """Test 1: Valid resume text should return a valid ResumeExtraction."""
-        
-        # Setup mock behavior
-        mock_chat = MagicMock()
-        mock_response = MagicMock()
-        
-        # Create a mock validated Pydantic object simulating the SDK's behavior
-        expected_extraction = ResumeExtraction(
-            name="John Doe", 
-            email="john@example.com"
-        )
-        mock_response.parsed = expected_extraction
-        
-        mock_chat.send_message.return_value = mock_response
-        mock_client.chats.create.return_value = mock_chat
+class TestExtractResumeWithLLM:
 
-        resume_text = "John Doe. Software Engineer. Email: john@example.com."
-        result = extract_resume_with_llm(resume_text)
-
-        self.assertIsInstance(result, ResumeExtraction)
-        self.assertEqual(result.name, "John Doe")
-        self.assertEqual(result.email, "john@example.com")
-        mock_client.chats.create.assert_called_once()
-
-    @patch("app.services.llm_resume_parser.client")
-    def test_empty_string_returns_none(self, mock_client):
-        """Test 2: Empty string should return None without calling API."""
+    @patch(
+        "app.services.llm_resume_parser.get_gemini_client"
+    )
+    def test_empty_string_returns_none(
+        self,
+        mock_get_client,
+    ):
         result = extract_resume_with_llm("")
-        
-        self.assertIsNone(result)
-        mock_client.chats.create.assert_not_called()
 
-    @patch("app.services.llm_resume_parser.client")
-    def test_whitespace_only_returns_none(self, mock_client):
-        """Test 3: Whitespace-only input should return None without calling API."""
-        result = extract_resume_with_llm("   \n   \t  ")
-        
-        self.assertIsNone(result)
-        mock_client.chats.create.assert_not_called()
+        assert result is None
+        mock_get_client.assert_not_called()
 
-    @patch("app.services.llm_resume_parser.client")
-    def test_gemini_failure_returns_none_safely(self, mock_client):
-        """Test 4: Unexpected Gemini failure should not crash the application."""
-        
-        # Setup mock to raise a generic exception
-        mock_client.chats.create.side_effect = Exception("Simulated API Down or Quota Exceeded")
-        
-        resume_text = "Valid resume text but API is broken."
-        
-        # This should safely catch the exception and return None, not crash
-        result = extract_resume_with_llm(resume_text)
-        
-        self.assertIsNone(result)
+    @patch(
+        "app.services.llm_resume_parser.get_gemini_client"
+    )
+    def test_whitespace_only_returns_none(
+        self,
+        mock_get_client,
+    ):
+        result = extract_resume_with_llm("   ")
+
+        assert result is None
+        mock_get_client.assert_not_called()
+
+    @patch(
+        "app.services.llm_resume_parser.get_gemini_client"
+    )
+    def test_gemini_failure_returns_none_safely(
+        self,
+        mock_get_client,
+    ):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.chats.create.side_effect = Exception(
+            "Gemini API failure"
+        )
+
+        result = extract_resume_with_llm(
+            "John Doe\njohn@example.com"
+        )
+
+        assert result is None
+
+    @patch(
+        "app.services.llm_resume_parser.get_gemini_client"
+    )
+    def test_valid_resume_text_returns_extraction(
+        self,
+        mock_get_client,
+    ):
+        mock_client = MagicMock()
+        mock_chat = MagicMock()
+
+        expected_resume = ResumeExtraction(
+            name="John Doe",
+            email="john@example.com",
+            phone="123456789",
+            location=None,
+            skills=["Python"],
+            experience=[],
+            education=[],
+            projects=[],
+            certifications=[],
+            languages=[],
+        )
+
+        mock_chat.send_message.return_value.parsed = (
+            expected_resume
+        )
+
+        mock_client.chats.create.return_value = (
+            mock_chat
+        )
+
+        mock_get_client.return_value = mock_client
+
+        result = extract_resume_with_llm(
+            """
+            John Doe
+            john@example.com
+            123456789
+
+            Skills:
+            Python
+            """
+        )
+
+        assert result is not None
+        assert result.name == "John Doe"
+        assert result.email == "john@example.com"
+        assert result.skills == ["Python"]
+
+        mock_get_client.assert_called_once()
         mock_client.chats.create.assert_called_once()
-
-
-if __name__ == "__main__":
-    unittest.main()
+        mock_chat.send_message.assert_called_once()
