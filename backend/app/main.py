@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.candidates import router as candidates_router
 from app.api.jobs import router as jobs_router
 from app.database.database import Base, engine
-
-import app.models
+from app.core.config import settings
 
 
 app = FastAPI(
@@ -13,11 +12,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+cors_origins = [
+    origin.strip()
+    for origin in settings.cors_origins.split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
