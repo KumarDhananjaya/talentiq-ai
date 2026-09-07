@@ -249,7 +249,20 @@ async def upload_resume(
         candidate.full_name = merged_resume.name
 
     if merged_resume.email:
-        candidate.email = merged_resume.email
+        existing_candidate = (
+        db.query(Candidate)
+        .filter(
+            Candidate.email == str(merged_resume.email),
+            Candidate.id != candidate_id,
+        )
+        .first()
+    )
+
+    if existing_candidate:
+        raise HTTPException(
+            status_code=400,
+            detail="Candidate with this email already exists",
+        )
 
     if merged_resume.phone:
         candidate.phone = merged_resume.phone
