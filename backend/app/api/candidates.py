@@ -41,6 +41,10 @@ from app.services.resume_merge_service import (
 from app.services.candidate_search_service import (
     search_candidates,
 )
+from app.models.candidate_experience import CandidateExperience
+from app.services.embedding_service import generate_embedding
+from app.services.match_invalidation_service import invalidate_candidate_matches
+from app.services.profile_text_service import build_candidate_profile
 
 
 router = APIRouter(
@@ -147,7 +151,16 @@ async def upload_resume(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    # ---------------------------------------------------------
+    # Find candidate
+    # ---------------------------------------------------------
+    candidate = (
+        db.query(Candidate)
+        .filter(
+            Candidate.id == candidate_id
+        )
+        .first()
+    )
 
     if not candidate:
         raise HTTPException(
@@ -155,20 +168,31 @@ async def upload_resume(
             detail="Candidate not found",
         )
 
+    # ---------------------------------------------------------
+    # Validate filename
+    # ---------------------------------------------------------
     if not file.filename:
         raise HTTPException(
             status_code=400,
             detail="Filename is required",
         )
 
-    extension = Path(file.filename).suffix.lower()
+    extension = Path(
+        file.filename
+    ).suffix.lower()
 
     if extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Only PDF files are allowed. Received: {extension}",
+            detail=(
+                "Only PDF files are allowed. "
+                f"Received: {extension}"
+            ),
         )
 
+    # ---------------------------------------------------------
+    # Read and validate file size
+    # ---------------------------------------------------------
     file_content = await file.read()
 
     if len(file_content) > MAX_FILE_SIZE:
@@ -177,53 +201,49 @@ async def upload_resume(
             detail="Resume must be smaller than 5 MB",
         )
 
+    # ---------------------------------------------------------
+    # Store uploaded file
+    # ---------------------------------------------------------
     safe_filename = f"{uuid4()}{extension}"
     file_path = UPLOAD_DIR / safe_filename
 
-    # Safely write the file (blocks minimally, but for true async use aiofiles)
     file_path.write_bytes(file_content)
 
     # ---------------------------------------------------------
-    # FIX: Wrap parsing in try/except to catch corrupted PDFs
+    # Process resume
     # ---------------------------------------------------------
     try:
-    # ---------------------------------------------------------
-    # Step 1: Extract raw text from PDF
-    # ---------------------------------------------------------
+
+        # Step 1: Extract raw text from PDF
         resume_text = extract_text_from_pdf(
             str(file_path)
         )
 
-        # ---------------------------------------------------------
         # Step 2: Rule-based parsing
-        # ---------------------------------------------------------
         rule_resume = parse_resume(
             resume_text
         )
 
-        # ---------------------------------------------------------
         # Step 3: Gemini structured extraction
-        # ---------------------------------------------------------
         try:
             llm_resume = extract_resume_with_llm(
                 resume_text
             )
 
         except Exception:
-            # LLM failure should not break resume upload.
-            # The merge service will fall back to rule-based data.
+            # LLM failure should not prevent upload.
+            # Rule-based extraction will still be used.
             llm_resume = None
 
-        # ---------------------------------------------------------
-        # Step 4: Merge both parser results
-        # ---------------------------------------------------------
+        # Step 4: Merge parser results
         merged_resume = merge_resume_results(
             rule_resume=rule_resume,
             llm_resume=llm_resume,
         )
 
     except Exception as e:
-        # Delete uploaded file if document processing fails
+
+        # Delete uploaded file if processing fails
         if file_path.exists():
             file_path.unlink()
 
@@ -233,65 +253,147 @@ async def upload_resume(
                 "Failed to process the resume document: "
                 f"{str(e)}"
             ),
-     )
+        )
 
-    # Save raw text to database
     # ---------------------------------------------------------
-    #   Save raw resume text
+    # Update raw resume text
     # ---------------------------------------------------------
     candidate.resume_text = resume_text
 
-
     # ---------------------------------------------------------
-    # Update candidate fields using merged extraction
+    # Update candidate name
     # ---------------------------------------------------------
     if merged_resume.name:
         candidate.full_name = merged_resume.name
 
+    # ---------------------------------------------------------
+    # Update candidate email
+    # ---------------------------------------------------------
     if merged_resume.email:
+
         existing_candidate = (
-        db.query(Candidate)
-        .filter(
-            Candidate.email == str(merged_resume.email),
-            Candidate.id != candidate_id,
-        )
-        .first()
-    )
-
-    if existing_candidate:
-        raise HTTPException(
-            status_code=400,
-            detail="Candidate with this email already exists",
+            db.query(Candidate)
+            .filter(
+                Candidate.email
+                == str(merged_resume.email),
+                Candidate.id != candidate_id,
+            )
+            .first()
         )
 
-    if merged_resume.phone:
-        candidate.phone = merged_resume.phone
+        if existing_candidate:
+            db.rollback()
 
+            if file_path.exists():
+                file_path.unlink()
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Candidate with this email "
+                    "already exists"
+                ),
+            )
+
+        candidate.email = str(
+            merged_resume.email
+        )
 
     # ---------------------------------------------------------
-    # Save merged skills
+    # Update candidate phone
+    # ---------------------------------------------------------
+    if merged_resume.phone:
+        candidate.phone = (
+            merged_resume.phone
+        )
+
+    # ---------------------------------------------------------
+    # Update candidate skills
     # ---------------------------------------------------------
     if merged_resume.skills:
-        candidate.skills = merged_resume.skills
-
+        candidate.skills = (
+            merged_resume.skills
+        )
 
     # ---------------------------------------------------------
-    # Keep rule-based experience calculation
+    # Update total experience
     # ---------------------------------------------------------
     candidate.experience_years = (
         rule_resume.total_experience_years
     )
 
-    
-    db.commit()
-    db.refresh(candidate)
+    # ---------------------------------------------------------
+    # Synchronize candidate experiences
+    # ---------------------------------------------------------
+    candidate.experiences.clear()
+
+    for experience in merged_resume.experience:
+
+        db_experience = CandidateExperience(
+            company=experience.company,
+            role=experience.role,
+            start_date=experience.start_date,
+            end_date=experience.end_date,
+            is_current=experience.is_current,
+            description=experience.description,
+        )
+
+        candidate.experiences.append(
+            db_experience
+        )
+
+    # ---------------------------------------------------------
+    # Rebuild candidate profile
+    # ---------------------------------------------------------
+    candidate_profile = build_candidate_profile(
+        candidate
+    )
+
+    # ---------------------------------------------------------
+    # Regenerate candidate embedding
+    # ---------------------------------------------------------
+    candidate.embedding = generate_embedding(
+        candidate_profile
+    )
+
+    # ---------------------------------------------------------
+    # Invalidate old persisted matches
+    #
+    # Skills, experience and embedding may have changed,
+    # so previously calculated matches are no longer valid.
+    # ---------------------------------------------------------
+    invalidate_candidate_matches(
+        db=db,
+        candidate_id=candidate.id,
+    )
+
+    # ---------------------------------------------------------
+    # Persist all candidate changes atomically
+    # ---------------------------------------------------------
+    try:
+
+        db.commit()
+        db.refresh(candidate)
+
+    except Exception:
+
+        db.rollback()
+
+        if file_path.exists():
+            file_path.unlink()
+
+        raise
 
     return {
-       "message": "Resume uploaded and analyzed successfully",
+        "message": (
+            "Resume uploaded and analyzed successfully"
+        ),
         "candidate_id": candidate_id,
         "original_filename": file.filename,
         "stored_filename": safe_filename,
         "file_size": len(file_content),
         "content_type": file.content_type,
-        "parsed_resume": merged_resume.model_dump(),
+        "parsed_resume": (
+            merged_resume.model_dump()
+        ),
     }
