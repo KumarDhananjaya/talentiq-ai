@@ -405,3 +405,24 @@ def get_persisted_job_matches(
         }
         for match in saved_matches
     ]
+
+def invalidate_job_matches(
+    db: Session,
+    job_id: int,
+) -> None:
+    """
+    Delete all persisted matches for a job.
+
+    Matches should be recalculated after
+    the job profile changes.
+    """
+
+    (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id == job_id
+        )
+        .delete(
+            synchronize_session=False
+        )
+    )
