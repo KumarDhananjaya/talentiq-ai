@@ -16,6 +16,9 @@ from app.services.profile_text_service import (
 from app.services.embedding_service import (
     generate_embedding,
 )
+from app.services.match_invalidation_service import (
+    invalidate_candidate_matches,
+)
 
 def create_candidate(
     db: Session,
@@ -196,6 +199,10 @@ def update_candidate(
     )
 
     try:
+        invalidate_candidate_matches(
+            db=db,
+            candidate_id=db_candidate.id,
+        )
         db.commit()
         db.refresh(db_candidate)
 

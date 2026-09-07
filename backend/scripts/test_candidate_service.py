@@ -5,10 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database.database import Base
 from app.models.candidate import Candidate
 from app.models.candidate_experience import CandidateExperience
-from app.schemas.candidate import (
-    CandidateCreate,
-    CandidateExperienceCreate,
-)
+
 from app.services.candidate_service import create_candidate
 from fastapi import HTTPException
 from app.schemas.candidate import (
@@ -20,6 +17,21 @@ from app.services.candidate_service import (
     create_candidate,
     update_candidate,
 )
+from app.models.job import Job
+from app.models.candidate_job_match import (
+    CandidateJobMatch,
+)
+from app.services.matching_service import (
+    calculate_and_persist_job_matches,
+)
+
+from app.services.embedding_service import (
+    generate_embedding,
+)
+from app.services.profile_text_service import (
+    build_job_profile,
+)
+from app.schemas import job
 
 
 
@@ -274,3 +286,81 @@ def test_update_candidate_duplicate_email(db):
     assert exc_info.value.detail == (
         "Candidate with this email already exists"
     )
+
+def test_update_candidate_invalidates_existing_matches(
+    db,
+):
+    candidate = create_candidate(
+        db=db,
+        candidate=CandidateCreate(
+            full_name="Match Candidate",
+            email="match@example.com",
+            skills=[
+                "Python",
+                "FastAPI",
+            ],
+            experience_years=3,
+        ),
+    )
+
+    job = Job(
+    title="Backend Engineer",
+    company="Example Company",
+    description="Backend development role",
+    required_skills=(
+        "Python, FastAPI"
+    ),
+    minimum_experience=2,
+)
+
+    job_profile = build_job_profile(
+        job
+    )
+
+    job.embedding = generate_embedding(
+        job_profile
+    )
+
+    db.add(job)
+    db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    matches_before_update = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.candidate_id
+            == candidate.id
+        )
+        .all()
+    )
+
+    assert len(matches_before_update) == 1
+
+    update_data = CandidateUpdate(
+        skills=[
+            "Python",
+            "FastAPI",
+            "Docker",
+        ],
+    )
+
+    update_candidate(
+        db=db,
+        candidate_id=candidate.id,
+        candidate=update_data,
+    )
+
+    matches_after_update = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.candidate_id
+            == candidate.id
+        )
+        .all()
+    )
+
+    assert len(matches_after_update) == 0
