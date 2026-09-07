@@ -2,28 +2,29 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.job import Job
+
 from app.schemas.job import (
     JobCreate,
     JobUpdate,
     JobResponse,
-)
-from app.services.matching_service import (
-    calculate_and_persist_job_matches,
-    get_persisted_job_matches,
-)
-
-from app.services.match_invalidation_service import (
-    invalidate_job_matches,
 )
 
 from app.schemas.matching import (
     JobMatchListResponse,
 )
 
-from app.services.embedding_service import generate_embedding
-from app.services.profile_text_service import build_job_profile
+from app.services.job_service import (
+    create_job,
+    get_jobs,
+    get_job,
+    update_job,
+    delete_job,
+)
 
+from app.services.matching_service import (
+    calculate_and_persist_job_matches,
+    get_persisted_job_matches,
+)
 
 
 router = APIRouter(
@@ -36,91 +37,71 @@ router = APIRouter(
     "/",
     response_model=JobResponse,
 )
-
-def create_job(
+def create_job_endpoint(
     job: JobCreate,
     db: Session = Depends(get_db),
 ):
-    db_job = Job(
-        **job.model_dump()
+    return create_job(
+        db=db,
+        job=job,
     )
-
-    job_profile = build_job_profile(
-        db_job
-    )
-
-    db_job.embedding = generate_embedding(
-        job_profile
-    )
-
-    db.add(db_job)
-    db.commit()
-    db.refresh(db_job)
-
-    return db_job
-
-@router.put(
-    "/{job_id}",
-    response_model=JobResponse,
-)
-def update_job(
-    job_id: int,
-    job: JobUpdate,
-    db: Session = Depends(get_db),
-):
-    db_job = (
-        db.query(Job)
-        .filter(Job.id == job_id)
-        .first()
-    )
-
-    if not db_job:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found",
-        )
-
-    update_data = job.model_dump(
-        exclude_unset=True
-    )
-
-    for field, value in update_data.items():
-        setattr(db_job, field, value)
-
-    job_profile = build_job_profile(
-        db_job
-    )
-
-    db_job.embedding = generate_embedding(
-        job_profile
-    )
-
-    try:
-        invalidate_job_matches(
-            db=db,
-            job_id=db_job.id,
-        )
-
-        db.commit()
-        db.refresh(db_job)
-
-    except Exception:
-        db.rollback()
-        raise
-
-    return db_job
 
 
 @router.get(
     "/",
     response_model=list[JobResponse],
 )
-def get_jobs(
+def get_jobs_endpoint(
     db: Session = Depends(get_db),
 ):
-    jobs = db.query(Job).all()
+    return get_jobs(
+        db=db,
+    )
 
-    return jobs
+
+@router.get(
+    "/{job_id}",
+    response_model=JobResponse,
+)
+def get_job_endpoint(
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    return get_job(
+        db=db,
+        job_id=job_id,
+    )
+
+
+@router.put(
+    "/{job_id}",
+    response_model=JobResponse,
+)
+def update_job_endpoint(
+    job_id: int,
+    job: JobUpdate,
+    db: Session = Depends(get_db),
+):
+    return update_job(
+        db=db,
+        job_id=job_id,
+        job=job,
+    )
+
+
+@router.delete(
+    "/{job_id}",
+    status_code=204,
+)
+def delete_job_endpoint(
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    delete_job(
+        db=db,
+        job_id=job_id,
+    )
+
 
 @router.post(
     "/{job_id}/matches/recalculate",
@@ -135,17 +116,10 @@ def recalculate_job_matches(
     for all candidates for a specific job.
     """
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id)
-        .first()
+    job = get_job(
+        db=db,
+        job_id=job_id,
     )
-
-    if not job:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found",
-        )
 
     matches = calculate_and_persist_job_matches(
         db=db,
@@ -157,6 +131,7 @@ def recalculate_job_matches(
         "total_matches": len(matches),
         "matches": matches,
     }
+
 
 @router.get(
     "/{job_id}/matches",
@@ -177,21 +152,14 @@ def get_job_matches_endpoint(
     db: Session = Depends(get_db),
 ):
     """
-    Return ranked candidates
+    Return persisted and ranked candidates
     for a specific job.
     """
 
-    job = (
-        db.query(Job)
-        .filter(Job.id == job_id)
-        .first()
+    job = get_job(
+        db=db,
+        job_id=job_id,
     )
-
-    if not job:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found",
-        )
 
     matches = get_persisted_job_matches(
         db=db,
