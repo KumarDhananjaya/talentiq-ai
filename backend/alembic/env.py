@@ -7,7 +7,7 @@ from alembic import context
 
 from app.core.config import settings
 from app.database.database import Base
-from app.models import Candidate, Job, CandidateExperience
+from app.models import Candidate, Job, CandidateExperience,CandidateJobMatch
 
 
 config = context.config
