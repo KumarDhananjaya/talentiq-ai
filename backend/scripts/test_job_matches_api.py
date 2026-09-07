@@ -437,3 +437,81 @@ def test_update_job_not_found(
     assert response.json() == {
         "detail": "Job not found"
     }
+
+def test_update_job_invalidates_existing_matches(
+    client,
+    db,
+):
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+    from app.models.candidate_job_match import (
+        CandidateJobMatch,
+    )
+    from app.services.matching_service import (
+        calculate_and_persist_job_matches,
+    )
+
+    candidate = Candidate(
+        full_name="Job Update Candidate",
+        email="jobupdate@example.com",
+        skills=[
+            "Python",
+            "FastAPI",
+        ],
+        experience_years=3,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    job = Job(
+        title="Backend Engineer",
+        company="Example Company",
+        description="Backend role",
+        required_skills="Python, FastAPI",
+        minimum_experience=2,
+        embedding=[1.0, 0.0, 0.0],
+    )
+
+    db.add_all([
+        candidate,
+        job,
+    ])
+
+    db.commit()
+
+    calculate_and_persist_job_matches(
+        db=db,
+        job=job,
+    )
+
+    matches_before_update = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id == job.id
+        )
+        .all()
+    )
+
+    assert len(matches_before_update) == 1
+
+    response = client.put(
+        f"/jobs/{job.id}",
+        json={
+            "title": "Senior Backend Engineer",
+            "required_skills": (
+                "Python, FastAPI, Docker"
+            ),
+            "minimum_experience": 4,
+        },
+    )
+
+    assert response.status_code == 200
+
+    matches_after_update = (
+        db.query(CandidateJobMatch)
+        .filter(
+            CandidateJobMatch.job_id == job.id
+        )
+        .all()
+    )
+
+    assert len(matches_after_update) == 0

@@ -11,6 +11,7 @@ from app.schemas.job import (
 from app.services.matching_service import (
     calculate_and_persist_job_matches,
     get_persisted_job_matches,
+    invalidate_job_matches,
 )
 
 from app.schemas.matching import (
@@ -89,8 +90,18 @@ def update_job(
         job_profile
     )
 
-    db.commit()
-    db.refresh(db_job)
+    try:
+        invalidate_job_matches(
+            db=db,
+            job_id=db_job.id,
+        )
+
+        db.commit()
+        db.refresh(db_job)
+
+    except Exception:
+        db.rollback()
+        raise
 
     return db_job
 
