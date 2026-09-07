@@ -1,49 +1,56 @@
+from unittest.mock import MagicMock
+
+from app.schemas.resume_extraction import ResumeExtraction
 from app.schemas.resume import ParsedResume
-from app.services.candidate_processor import parsed_resume_to_candidate
+from app.services.candidate_processor import (
+    parsed_resume_to_candidate,
+    resume_extraction_to_candidate,
+)
 
 
-def test_parsed_resume_to_candidate():
-
+def test_parsed_resume_to_candidate_includes_experience_years():
     parsed_resume = ParsedResume(
         full_name="John Doe",
         email="john@example.com",
-        phone="1234567890",
-        skills=["Python", "FastAPI", "PostgreSQL"],
-        experience=[
-            {
-                "company": "Google",
-                "role": "Software Engineer",
-            },
-            {
-                "company": "Microsoft",
-                "role": "Software Engineer Intern",
-            },
-        ],
-        education=[],
+        phone="123456789",
+        skills=["Python"],
+        total_experience_years=4.5,
+        experience=[],
     )
 
-    result = parsed_resume_to_candidate(
+    candidate = parsed_resume_to_candidate(
         parsed_resume=parsed_resume,
-        resume_text="John Doe Software Engineer Python FastAPI",
+        resume_text="John Doe resume",
     )
 
-    assert result.full_name == "John Doe"
-    assert result.email == "john@example.com"
-    assert result.phone == "1234567890"
-    assert result.resume_text == (
-        "John Doe Software Engineer Python FastAPI"
+    assert candidate.full_name == "John Doe"
+    assert candidate.email == "john@example.com"
+    assert candidate.phone == "123456789"
+    assert candidate.skills == ["Python"]
+    assert candidate.experience_years == 4.5
+    assert candidate.experiences == []
+
+
+def test_resume_extraction_to_candidate_includes_experience_years():
+    resume = MagicMock(
+        spec=ResumeExtraction
     )
 
-    assert result.skills == [
-        "Python",
-        "FastAPI",
-        "PostgreSQL",
-    ]
+    resume.name = "John Doe"
+    resume.email = "john@example.com"
+    resume.phone = "123456789"
+    resume.skills = ["Python"]
+    resume.experience = []
 
-    assert len(result.experiences) == 2
+    candidate = resume_extraction_to_candidate(
+        resume=resume,
+        resume_text="John Doe resume",
+        experience_years=4.5,
+    )
 
-    assert result.experiences[0].company == "Google"
-    assert result.experiences[0].role == "Software Engineer"
-
-    assert result.experiences[1].company == "Microsoft"
-    assert result.experiences[1].role == "Software Engineer Intern"
+    assert candidate.full_name == "John Doe"
+    assert candidate.email == "john@example.com"
+    assert candidate.phone == "123456789"
+    assert candidate.skills == ["Python"]
+    assert candidate.experience_years == 4.5
+    assert candidate.experiences == []

@@ -45,38 +45,26 @@ def parsed_resume_to_candidate(
 def resume_extraction_to_candidate(
     resume: ResumeExtraction,
     resume_text: str,
+    experience_years: float | None = None,
 ) -> CandidateCreate:
-    """
-    Convert the unified merged ResumeExtraction
-    into CandidateCreate.
-    """
-
-    experiences = []
-
-    for item in resume.experience:
-        experiences.append(
-            CandidateExperienceCreate(
-                company=item.company,
-                role=item.role,
-                start_date=item.start_date,
-                end_date=item.end_date,
-                is_current=item.is_current,
-                description=(
-                    "\n".join(item.description)
-                    if item.description
-                    else None
-                ),
-            )
+    experiences = [
+        CandidateExperienceCreate(
+            company=item.company,
+            role=item.role,
+            start_date=item.start_date,
+            end_date=item.end_date,
+            is_current=item.is_current,
+            description="\n".join(item.description) if item.description else None,
         )
+        for item in resume.experience
+    ]
 
     return CandidateCreate(
-        full_name=(
-            resume.name
-            or "Unknown Candidate"
-        ),
+        full_name=resume.name or "Unknown Candidate",
         email=resume.email,
         phone=resume.phone,
         resume_text=resume_text,
         skills=resume.skills,
+        experience_years=experience_years,
         experiences=experiences,
     )
