@@ -18,48 +18,24 @@ def search_candidates(
     skills: list[str] | None = None,
     minimum_experience: float | None = None,
 ) -> list[Candidate]:
-    """
-    Search candidates using structured filters.
+    query = db.query(Candidate)
 
-    Currently supports:
-    - Required skills
-    - Minimum experience
-    """
+    if minimum_experience is not None:
+        query = query.filter(
+            Candidate.experience_years.is_not(None),
+            Candidate.experience_years >= minimum_experience,
+        )
 
-    candidates = (
-        db.query(Candidate)
-        .all()
-    )
+    candidates = query.all()
 
     if skills:
         required_skills = {
-            normalize_skill(skill)
-            for skill in skills
-            if skill.strip()
+            normalize_skill(skill) for skill in skills if skill.strip()
         }
-
         candidates = [
-            candidate
-            for candidate in candidates
+            c for c in candidates
             if required_skills.issubset(
-                {
-                    normalize_skill(skill)
-                    for skill in (
-                        candidate.skills or []
-                    )
-                }
-            )
-        ]
-
-    if minimum_experience is not None:
-        candidates = [
-            candidate
-            for candidate in candidates
-            if (
-                candidate.experience_years
-                is not None
-                and candidate.experience_years
-                >= minimum_experience
+                {normalize_skill(s) for s in (c.skills or [])}
             )
         ]
 
