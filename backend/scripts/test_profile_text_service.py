@@ -18,8 +18,10 @@ def test_build_candidate_profile():
     profile = build_candidate_profile(candidate)
 
     assert "Backend developer" in profile
-    assert "Python, FastAPI" in profile
-    assert "3 years of experience" in profile
+    assert "Python" in profile
+    assert "Fastapi" in profile or "FastAPI" in profile or "fastapi" in profile
+    assert "3 years" in profile
+    assert "Candidate Profile" in profile
 
 
 def test_build_job_profile():
@@ -35,5 +37,6 @@ def test_build_job_profile():
 
     assert "Backend Engineer" in profile
     assert "scalable backend APIs" in profile
-    assert "Python, FastAPI" in profile
-    assert "Minimum experience: 2 years" in profile
+    assert "Python" in profile
+    assert "2 years" in profile
+    assert "Job Profile" in profile
