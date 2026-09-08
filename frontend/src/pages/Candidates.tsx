@@ -94,7 +94,6 @@ function Candidates() {
           <p className="mt-2 text-gray-600">
             Manage and analyze your talent pool.
           </p>
-           
         </div>
 
         <button
