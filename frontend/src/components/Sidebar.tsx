@@ -28,8 +28,9 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="min-h-screen w-64 border-r border-gray-200 bg-white p-5 flex flex-col justify-between shadow-xs">
+    <aside className="fixed inset-y-0 left-0 h-screen w-64 border-r border-gray-200 bg-white p-5 flex flex-col justify-between shadow-xs z-30 overflow-y-auto">
       <div>
+
         {/* Brand Header */}
         <div className="mb-8 px-2">
           <div className="flex items-center gap-2.5">
