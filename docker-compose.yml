@@ -25,6 +25,8 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql+psycopg://talentiq:talentiq_password@postgres:5432/talentiq_db
+    volumes:
+      - ./backend:/app
     ports:
       - "8000:8000"
     depends_on:
