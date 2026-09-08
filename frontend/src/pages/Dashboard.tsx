@@ -127,7 +127,7 @@ export default function Dashboard() {
           <div className="max-w-2xl space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-md">
               <Sparkles size={13} className="text-amber-300" />
-              <span>USYD Capstone Portfolio Showcase</span>
+              <span>Portfolio Showcase</span>
             </div>
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
               TalentIQ AI Intelligence Engine
