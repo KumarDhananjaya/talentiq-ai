@@ -1,4 +1,4 @@
-# 🧠 TalentIQ AI – Recruitment Intelligence Platform
+# TalentIQ AI – Recruitment Intelligence Platform
 
 > **An End-to-End AI-Augmented Recruitment Platform combining Large Language Model Entity Extraction, Sentence-Transformer Dense Embeddings, and an Explainable 3-Pillar Hybrid Matching Engine.**
 
