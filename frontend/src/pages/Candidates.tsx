@@ -61,7 +61,8 @@ function Candidates() {
       : 0;
 
   const candidatesWithSkills = candidates.filter(
-    (candidate) => candidate.skills && candidate.skills.trim().length > 0,
+    (candidate) =>
+      Array.isArray(candidate.skills) && candidate.skills.length > 0,
   ).length;
 
   if (loading) {

@@ -121,10 +121,17 @@ def recalculate_job_matches(
         job_id=job_id,
     )
 
-    matches = calculate_and_persist_job_matches(
-        db=db,
-        job=job,
-    )
+    try:
+        matches = calculate_and_persist_job_matches(
+            db=db,
+            job=job,
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to calculate matches: {str(e)}",
+        )
 
     return {
         "job_id": job.id,

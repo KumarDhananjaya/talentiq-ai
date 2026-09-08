@@ -1,3 +1,5 @@
+import json
+import logging
 from app.models.candidate import Candidate
 from app.models.job import Job
 from sqlalchemy.orm import Session
@@ -9,28 +11,50 @@ from app.services.match_persistence_service import (
 )
 from app.models.candidate_job_match import CandidateJobMatch
 
+logger = logging.getLogger(__name__)
+
+
 def normalize_skill(skill: str) -> str:
     """
     Normalize a skill for comparison.
     """
-
-    return skill.strip().lower()
+    if not skill:
+        return ""
+    return str(skill).strip().lower()
 
 
 def get_candidate_skills(
     candidate: Candidate,
 ) -> set[str]:
     """
-    Normalize candidate skills.
+    Normalize candidate skills safely handling lists, JSON strings, and None.
     """
 
     if not candidate.skills:
         return set()
 
-    return {
-        normalize_skill(skill)
-        for skill in candidate.skills
-    }
+    raw_skills = candidate.skills
+
+    if isinstance(raw_skills, str):
+        try:
+            parsed = json.loads(raw_skills)
+            if isinstance(parsed, list):
+                raw_skills = parsed
+            else:
+                raw_skills = raw_skills.split(",")
+        except Exception:
+            raw_skills = raw_skills.split(",")
+
+    if isinstance(raw_skills, (list, set, tuple)):
+        skills_set = set()
+        for skill in raw_skills:
+            if skill is not None and str(skill).strip():
+                normalized = normalize_skill(str(skill))
+                if normalized:
+                    skills_set.add(normalized)
+        return skills_set
+
+    return set()
 
 
 def get_job_skills(
@@ -44,10 +68,18 @@ def get_job_skills(
     if not job.required_skills:
         return set()
 
+    raw_skills = job.required_skills
+    if isinstance(raw_skills, (list, set, tuple)):
+        return {
+            normalize_skill(str(s))
+            for s in raw_skills
+            if s and str(s).strip()
+        }
+
     return {
         normalize_skill(skill)
-        for skill in job.required_skills.split(",")
-        if skill.strip()
+        for skill in str(job.required_skills).split(",")
+        if str(skill).strip()
     }
 
 
@@ -307,39 +339,48 @@ def calculate_and_persist_job_matches(
     matches = []
 
     for candidate in candidates:
+        try:
+            match_result = calculate_match(
+                candidate=candidate,
+                job=job,
+            )
 
-        match_result = calculate_match(
-            candidate=candidate,
-            job=job,
-        )
+            saved_match = save_candidate_job_match(
+                db=db,
+                candidate_id=candidate.id,
+                job_id=job.id,
+                match_result=match_result,
+                commit=False,
+            )
 
-        saved_match = save_candidate_job_match(
-            db=db,
-            candidate_id=candidate.id,
-            job_id=job.id,
-            match_result=match_result,
-            commit=False,
-        )
+            matches.append(
+                {
+                    "candidate_id": saved_match.candidate_id,
+                    "job_id": saved_match.job_id,
+                    "candidate_name": candidate.full_name,
+                    "candidate_email": candidate.email,
+                    "overall_score": saved_match.overall_score,
+                    "skill_score": saved_match.skill_score,
+                    "experience_score": saved_match.experience_score,
+                    "semantic_score": saved_match.semantic_score,
+                    "matched_skills": saved_match.matched_skills,
+                    "missing_skills": saved_match.missing_skills,
+                    "experience_status": saved_match.experience_status,
+                    "match_level": saved_match.match_level,
+                    "explanation": saved_match.explanation,
+                }
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to calculate match for candidate {candidate.id} on job {job.id}: {str(e)}"
+            )
 
-        matches.append(
-            {
-                "candidate_id": saved_match.candidate_id,
-                "job_id": saved_match.job_id,
-                "candidate_name": candidate.full_name,
-                "candidate_email": candidate.email,
-                "overall_score": saved_match.overall_score,
-                "skill_score": saved_match.skill_score,
-                "experience_score": saved_match.experience_score,
-                "semantic_score": saved_match.semantic_score,
-                "matched_skills": saved_match.matched_skills,
-                "missing_skills": saved_match.missing_skills,
-                "experience_status": saved_match.experience_status,
-                "match_level": saved_match.match_level,
-                "explanation": saved_match.explanation,
-            }
-        )
-
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to commit matches for job {job.id}: {str(e)}")
+        raise e
 
     matches.sort(
         key=lambda match: match["overall_score"],
