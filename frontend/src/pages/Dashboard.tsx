@@ -12,10 +12,9 @@ import {
   Award,
   ArrowUpRight,
   BrainCircuit,
-  CheckCircle2,
-  Layers,
   ArrowRight,
 } from "lucide-react";
+
 import {
   BarChart,
   Bar,

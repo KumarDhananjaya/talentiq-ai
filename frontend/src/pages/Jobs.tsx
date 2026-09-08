@@ -239,12 +239,13 @@ export default function Jobs() {
 
     return dimensions.map((dim) => {
       const entry: Record<string, string | number> = { dimension: dim.label };
-      comparedMatches.forEach((match, idx) => {
+      comparedMatches.forEach((match) => {
         const name = match.candidate_name || `Candidate #${match.candidate_id}`;
         entry[name] = (match as any)[dim.key] ?? 0;
       });
       return entry;
     });
+
   }, [matches, selectedForCompare]);
 
   // Helper for Match Badge
@@ -878,7 +879,7 @@ export default function Jobs() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">AI Screening Questions</h3>
-                  <p className="text-xs text-gray-500">Tailored for {interviewCandidate.candidate_name || `Candidate #${interviewCandidate.candidate_id}`} ({selectedJob.title})</p>
+                  <p className="text-xs text-gray-500">Tailored for {interviewCandidate.candidate_name || `Candidate #${interviewCandidate.candidate_id}`} ({selectedJob?.title || "Target Role"})</p>
                 </div>
               </div>
               <button
@@ -932,10 +933,11 @@ export default function Jobs() {
                   3. Experience & Alignment Assessment
                 </span>
                 <p className="text-gray-700 leading-relaxed">
-                  "This role requires {selectedJob.minimum_experience || 2}+ years. How do your past responsibilities align with the high-ownership requirements of this position?"
+                  "This role requires {selectedJob?.minimum_experience || 2}+ years. How do your past responsibilities align with the high-ownership requirements of this position?"
                 </p>
               </div>
             </div>
+
 
             <div className="mt-6 flex justify-end">
               <button

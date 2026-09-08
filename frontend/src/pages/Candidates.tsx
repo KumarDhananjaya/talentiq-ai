@@ -15,9 +15,9 @@ import {
   X,
   ExternalLink,
   Sparkles,
-  Layers,
-  Award,
+  AlertCircle,
 } from "lucide-react";
+
 
 export default function Candidates() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -120,6 +120,23 @@ export default function Candidates() {
           Add Candidate
         </button>
       </div>
+
+      {/* Global Error Banner */}
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} className="shrink-0 text-red-600" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => loadData()}
+            className="text-xs font-semibold underline hover:text-red-900"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

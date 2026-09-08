@@ -5,8 +5,8 @@ import {
   BriefcaseBusiness,
   Sparkles,
   GraduationCap,
-  Activity,
 } from "lucide-react";
+
 
 export default function Sidebar() {
   const links = [
