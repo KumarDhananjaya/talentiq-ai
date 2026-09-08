@@ -72,46 +72,152 @@ $$S_{\text{sem}} = \max\left(0, \frac{\mathbf{u}_{\text{candidate}} \cdot \mathb
 
 ```mermaid
 flowchart TD
-    subgraph Client["Frontend (React 19 + TypeScript + Vite + Tailwind)"]
-        Dashboard["Executive Analytics Dashboard"]
-        JobHub["Job Matching Hub & Dynamic Sliders"]
-        TalentPool["Talent Pool & Profile Drawer"]
-        RadarCompare["Radar Chart Comparison Modal"]
-        InterviewGen["AI Interview Question Generator"]
+
+    %% ==========================================
+    %% 1. PRESENTATION LAYER
+    %% ==========================================
+    subgraph Client["Frontend Layer — React 19 + TypeScript + Vite + Tailwind CSS"]
+        Dashboard["Analytics Dashboard"]
+        Jobs["Job Postings Hub"]
+        Candidates["Talent Pool"]
+        MatchingUI["Dynamic Matching Console"]
+        CandidateProfile["Candidate Profile Drawer"]
+        Comparison["Multi-Candidate Radar Comparison"]
+        InterviewAI["AI Interview Question Generator"]
     end
 
-    subgraph Backend["Backend API (FastAPI + Python 3.11+)"]
-        API["FastAPI REST Routers"]
+    %% ==========================================
+    %% 2. API GATEWAY & ROUTING
+    %% ==========================================
+    subgraph Backend["Backend API Gateway — FastAPI + Python 3.11"]
+        API["FastAPI REST Router"]
+
+        CandidateRouter["Candidate Router (/candidates)"]
+        JobRouter["Job Router (/jobs)"]
+        MatchRouter["Matching Router (/matches)"]
+        AnalyticsRouter["Analytics Router (/analytics)"]
+        InterviewRouter["Interview Router (/interviews)"]
+    end
+
+    %% ==========================================
+    %% 3. APPLICATION & DOMAIN SERVICES
+    %% ==========================================
+    subgraph Services["Application & Business Logic Layer"]
+        CandidateService["Candidate Service"]
+        JobService["Job Service"]
+        MatchingService["Matching Service"]
+        AnalyticsService["Analytics Service"]
+        InterviewService["Interview Service"]
+    end
+
+    %% ==========================================
+    %% 4. INGESTION & EXTRACTION PIPELINE
+    %% ==========================================
+    subgraph ResumePipeline["Resume Ingestion & Intelligence Pipeline"]
+        Upload["PDF Resume Upload"]
+        PDFParser["PyMuPDF Font & Glyph Extractor"]
+        RuleParser["Deterministic Rule Parser"]
+        GeminiParser["Google Gemini 1.5 Structured Entity Extractor"]
+        Merge["Resume Schema Merger"]
+        Normalizer["Skill Taxonomy & Alias Normalizer"]
+        CandidateSchema["Unified Candidate Schema"]
+    end
+
+    %% ==========================================
+    %% 5. INTELLIGENCE & VECTOR ENGINE
+    %% ==========================================
+    subgraph Intelligence["AI Intelligence & 3-Pillar Matching Engine"]
+        Embedder["Sentence-Transformers (all-MiniLM-L6-v2)"]
         
-        subgraph Pipeline["Ingestion & Extraction"]
-            PDFParser["PyMuPDF Glyph Extractor"]
-            LLMParser["Google Gemini 1.5 Structured LLM"]
-            Taxonomy["Alias Taxonomy Normalizer"]
-        end
+        SkillMatch["Pillar 1: Skill Compatibility Score"]
+        ExperienceMatch["Pillar 2: Experience Duration Score"]
+        SemanticMatch["Pillar 3: Dense Cosine Similarity Score"]
 
-        subgraph ML["Intelligence & Vector Engine"]
-            Embedder["sentence-transformers (all-MiniLM-L6-v2)"]
-            Matcher["3-Pillar Hybrid Matching Engine"]
-        end
+        HybridMatcher["Weighted Hybrid Matching Engine"]
+        Explainability["Explainability & Skill Gap Generator"]
     end
 
-    subgraph DB["Storage Layer"]
-        Postgres[(PostgreSQL 16 Database)]
-        MatchesCache[(candidate_job_matches Table)]
+    %% ==========================================
+    %% 6. PERSISTENCE LAYER
+    %% ==========================================
+    subgraph Storage["Persistence Layer — PostgreSQL 16"]
+        CandidatesTable[("Candidates")]
+        JobsTable[("Jobs")]
+        ExperiencesTable[("Candidate Experiences")]
+        MatchesTable[("Candidate Job Matches Cache")]
+        EmbeddingsTable[("Dense Vector Store")]
     end
 
+    %% Frontend -> Gateway
     Dashboard --> API
-    JobHub --> API
-    TalentPool --> API
-    
-    API --> Pipeline
-    Pipeline --> Taxonomy
-    Taxonomy --> Embedder
-    Embedder --> Postgres
-    
-    API --> Matcher
-    Matcher --> Embedder
-    Matcher --> MatchesCache
+    Jobs --> API
+    Candidates --> API
+    MatchingUI --> API
+    CandidateProfile --> API
+    Comparison --> API
+    InterviewAI --> API
+
+    %% Gateway -> Routers
+    API --> CandidateRouter
+    API --> JobRouter
+    API --> MatchRouter
+    API --> AnalyticsRouter
+    API --> InterviewRouter
+
+    %% Routers -> Services
+    CandidateRouter --> CandidateService
+    JobRouter --> JobService
+    MatchRouter --> MatchingService
+    AnalyticsRouter --> AnalyticsService
+    InterviewRouter --> InterviewService
+
+    %% Resume Ingestion Flow
+    CandidateService --> Upload
+    Upload --> PDFParser
+    PDFParser --> RuleParser
+    PDFParser --> GeminiParser
+    RuleParser --> Merge
+    GeminiParser --> Merge
+    Merge --> Normalizer
+    Normalizer --> CandidateSchema
+    CandidateSchema --> CandidateService
+
+    %% Job Taxonomy Processing
+    JobService --> Normalizer
+
+    %% Embeddings Processing
+    CandidateService --> Embedder
+    JobService --> Embedder
+    Embedder --> EmbeddingsTable
+
+    %% 3-Pillar Matching Flow
+    MatchingService --> SkillMatch
+    MatchingService --> ExperienceMatch
+    MatchingService --> SemanticMatch
+    Embedder --> SemanticMatch
+
+    SkillMatch --> HybridMatcher
+    ExperienceMatch --> HybridMatcher
+    SemanticMatch --> HybridMatcher
+
+    HybridMatcher --> Explainability
+    Explainability --> MatchesTable
+
+    %% Persistence Access
+    CandidateService --> CandidatesTable
+    CandidateService --> ExperiencesTable
+    JobService --> JobsTable
+
+    MatchingService --> CandidatesTable
+    MatchingService --> JobsTable
+    MatchingService --> MatchesTable
+
+    AnalyticsService --> CandidatesTable
+    AnalyticsService --> JobsTable
+    AnalyticsService --> MatchesTable
+
+    InterviewService --> CandidatesTable
+    InterviewService --> JobsTable
 ```
 
 ---
