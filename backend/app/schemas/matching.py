@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 class JobMatchResponse(BaseModel):
     candidate_id: int
     job_id: int
+    candidate_name: str | None = None
+    candidate_email: str | None = None
 
     overall_score: float = Field(
         ge=0,

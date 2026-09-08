@@ -325,6 +325,8 @@ def calculate_and_persist_job_matches(
             {
                 "candidate_id": saved_match.candidate_id,
                 "job_id": saved_match.job_id,
+                "candidate_name": candidate.full_name,
+                "candidate_email": candidate.email,
                 "overall_score": saved_match.overall_score,
                 "skill_score": saved_match.skill_score,
                 "experience_score": saved_match.experience_score,
@@ -370,6 +372,8 @@ def get_persisted_job_matches(
         {
             "candidate_id": match.candidate_id,
             "job_id": match.job_id,
+            "candidate_name": match.candidate.full_name if match.candidate else None,
+            "candidate_email": match.candidate.email if match.candidate else None,
             "overall_score": match.overall_score,
             "skill_score": match.skill_score,
             "experience_score": match.experience_score,
