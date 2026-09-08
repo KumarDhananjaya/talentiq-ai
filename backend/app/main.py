@@ -6,8 +6,16 @@ from fastapi.responses import JSONResponse
 from app.api.candidates import router as candidates_router
 from app.api.jobs import router as jobs_router
 from app.core.config import settings
+from app.database.database import Base, engine
+import app.models
 
 logger = logging.getLogger(__name__)
+
+# Ensure tables exist in database on startup
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    logger.warning(f"Could not auto-create tables on startup: {e}")
 
 app = FastAPI(
     title="TalentIQ AI",
