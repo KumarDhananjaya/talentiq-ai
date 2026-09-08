@@ -32,9 +32,33 @@ $$\text{Overall Fit} = (w_{\text{skill}} \times S_{\text{skill}}) + (w_{\text{ex
 
 $$\text{Default Weights}: \quad w_{\text{skill}} = 0.40, \quad w_{\text{exp}} = 0.20, \quad w_{\text{sem}} = 0.40$$
 
-### 1. Skill Fit Score ($S_{\text{skill}}$)
-$$\mathcal{S}_{\text{candidate}} = \text{parse\_skills}(\text{candidate.skills}), \quad \mathcal{S}_{\text{job}} = \text{parse\_skills}(\text{job.required\_skills})$$
-$$S_{\text{skill}} = \frac{|\mathcal{S}_{\text{candidate}} \cap \mathcal{S}_{\text{job}}|}{|\mathcal{S}_{\text{job}}|} \times 100\%$$
+### 1. Skill Fit Score
+
+$$
+\mathcal{S}_{\text{candidate}} =
+\mathrm{parse\_skills}(\mathrm{candidate.skills})
+$$
+
+$$
+\mathcal{S}_{\text{job}} =
+\mathrm{parse\_skills}(\mathrm{job.required\_skills})
+$$
+
+$$
+S_{\text{skill}} =
+\frac{
+\left|
+\mathcal{S}_{\text{candidate}}
+\cap
+\mathcal{S}_{\text{job}}
+\right|
+}{
+\left|
+\mathcal{S}_{\text{job}}
+\right|
+}
+\times 100\%
+$$
 
 ### 2. Experience Compatibility ($S_{\text{exp}}$)
 $$S_{\text{exp}} = \min\left(100, \frac{\text{Years}_{\text{candidate}}}{\text{MinYears}_{\text{job}}} \times 100\right)$$
