@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import JSON, DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -53,5 +53,6 @@ class Job(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
     )

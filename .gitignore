@@ -185,7 +185,7 @@ service-account.json
 # =========================================================
 # Machine Learning Generated Files
 # =========================================================
-models/
+/models/
 checkpoints/
 
 *.joblib

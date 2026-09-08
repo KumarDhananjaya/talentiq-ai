@@ -1,9 +1,9 @@
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.candidate_job_match import (
     CandidateJobMatch,
 )
-
 
 
 def save_candidate_job_match(
@@ -13,6 +13,7 @@ def save_candidate_job_match(
     match_result: dict,
     commit: bool = True,
 ) -> CandidateJobMatch:
+    now = datetime.now(timezone.utc)
     existing_match = (
         db.query(CandidateJobMatch)
         .filter(
@@ -25,9 +26,15 @@ def save_candidate_job_match(
     if existing_match:
         for key, value in match_result.items():
             setattr(existing_match, key, value)
+        existing_match.updated_at = now
         match_obj = existing_match
     else:
-        match_obj = CandidateJobMatch(**match_result)
+        data = dict(match_result)
+        if "created_at" not in data or data["created_at"] is None:
+            data["created_at"] = now
+        if "updated_at" not in data or data["updated_at"] is None:
+            data["updated_at"] = now
+        match_obj = CandidateJobMatch(**data)
         db.add(match_obj)
 
     if commit:

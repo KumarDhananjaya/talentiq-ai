@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Integer, String, Text, Float, JSON, func
 from sqlalchemy.orm import (
@@ -70,5 +70,6 @@ class Candidate(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
+        default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
     )
