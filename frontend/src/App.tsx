@@ -8,22 +8,16 @@ import Jobs from "./pages/Jobs";
 
 function App() {
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Fixed Left Sidebar */}
       <Sidebar />
 
-      <main className="flex-1 p-8">
+      {/* Main Scrollable Content Area */}
+      <main className="ml-64 flex-1 min-h-screen p-6 sm:p-8 lg:p-10 overflow-y-auto max-w-(--breakpoint-2xl)">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-
-          <Route
-            path="/candidates"
-            element={<Candidates />}
-          />
-
-          <Route
-            path="/jobs"
-            element={<Jobs />}
-          />
+          <Route path="/candidates" element={<Candidates />} />
+          <Route path="/jobs" element={<Jobs />} />
         </Routes>
       </main>
     </div>
